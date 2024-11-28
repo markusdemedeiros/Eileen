@@ -2,4 +2,5 @@
 Authors: Markus de Medeiros
 -/
 
-import «Eileen».Ofe
+
+def x : Nat := 0
