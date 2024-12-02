@@ -3,278 +3,283 @@ Authors: Markus de Medeiros
 -/
 
 -- import mathlib.CategoryTheory.Category.Basic
-import mathlib.CategoryTheory.ConcreteCategory.Basic
+import mathlib.Data.FunLike.Basic
+-- import mathlib.CategoryTheory.ConcreteCategory.Basic
 import mathlib.Order.Basic
 
 
--- NOTE: Right now I'm using a hierarhy of weak structures (HasIndexedEquiv instead of IndexedSetoid).
--- For some reason it works, but if I need stronger properties, everything here can be strengthened.
+/-- A type with a binary relation -/
+abbrev Rel.{u} (T : Type u) := HasEquiv T
+
+abbrev rel (T : Type u) [HasEquiv T] := @HasEquiv.Equiv T
+
+/-- An indexed binary relation (dupe of std) -/
+class IRel.{u} (T : Type u) where
+  irel : ℕ -> T -> T -> Prop
+
+notation:30 a1 " ≈[ " n " ] "  a2 => IRel.irel n a1 a2
+
+/-- [unbundled] A relation is an equivalence relation  -/
+@[simp]
+abbrev is_equivalence_relation {T : Type u} (R : T -> T -> Prop) :=
+  Equivalence R
 
 
+/-- [unbundled] A relation is an indexed equivalence relation  -/
+@[simp]
+def is_indexed_equiv {T : Type u} (R : ℕ -> T -> T -> Prop) : Prop :=
+  ∀ n : ℕ, is_equivalence_relation (R n)
+
+/-- [unbundled] ... -/
+@[simp]
+def is_indexed_mono {T : Type u} (R : ℕ -> T -> T -> Prop) : Prop :=
+  ∀ {m n : Nat}, ∀ {x y : T}, m ≤ n -> R m x y -> R n x y
+
+/-- [unbundled] ... -/
+@[simp]
+def indexed_refines_eq {T : Type u} (R : ℕ -> T -> T -> Prop) : Prop :=
+  ∀ {x y : T}, (∀ n, R n x y) <-> x = y
+
+/-- [semi-bundled] an OFE is an indexed relation that is an equivalence relation at each stpe -/
+class OFE (T : Type u) extends (IRel T) where
+  equiv : is_indexed_equiv toIRel.irel
+  mono : is_indexed_mono toIRel.irel
+  limit : indexed_refines_eq toIRel.irel
 
 
-/-
-Before, I trued to unbundle the relation from the classes
+/-- [unbundled] ... -/
+def is_nonexpansive {M N : Type} [IRel M] [IRel N] (f : M -> N) : Prop :=
+  ∀ (n : Nat), ∀ x y, (x ≈[n] y) -> (f x ≈[n] f y)
 
-I think that bundling it might be a better idea, this is more inline w/ the mathlib design practices
--/
-
--- -- A relation is like a function from α -> α -> Prop
--- abbrev RelLike (F : Sort*) (α : outParam (Sort*)) := FunLike F α (α -> Prop)
--- abbrev IRelLike (F : Sort*) (α : outParam (Sort*)) := FunLike F ℕ (α -> α -> Prop)
-
--- /-- A relation obeys the properties of an equivalence relation -/
--- class HasEquivalence {α : Sort u} (r : α → α → Prop) extends (Equivalence r)
-
--- class MonoidHomClass₃ (F : Type) (M N : outParam Type) [Monoid M] [Monoid N] extends
---     DFunLike F M (fun _ ↦ N) where
---   map_one : ∀ f : F, f 1 = 1
---   map_mul : ∀ (f : F) g g', f (g * g') = f g * f g'
-
-abbrev Relation.{u} (T : Type u) : Type u := T -> T -> Prop
-
-abbrev IndexedRelation.{u} (T : Type u) : Type u := Nat -> Relation T
-
-/--
-A type has an indexed relation
--/
-class HasIndexedEquiv (α : Type) where
-  iequiv : IndexedRelation α
-
-attribute [simp] HasIndexedEquiv.iequiv
-
-notation:30 a1 " ≈[ " n " ] "  a2 => HasIndexedEquiv.iequiv n a1 a2
-
-/--
-An indexed setoid is an indexed relation, which is an equivalence relation (setoid) at every index.
--/
-class IndexedSetoid (α : Type) extends (HasIndexedEquiv α) where
-  iseqv : ∀ n, Equivalence (iequiv n)
-
-instance (n : Nat) [IndexedSetoid α] : Setoid α where
-  r := HasIndexedEquiv.iequiv n
-  iseqv := IndexedSetoid.iseqv n
-
-/--
-An OFE is an indexed setoid which satsifies the monotonicity and limit properties.
--/
-class OFE (T : Type) extends IndexedSetoid T where
-  mono : ∀ {m n : Nat}, ∀ {x y : T}, m ≤ n -> (x ≈[m] y) -> (x ≈[n] y)
-  limit : ∀ {x y : T}, (∀ n, x ≈[n] y) <-> x = y
-
-
-/-- A type F behaves like a relation morphism from M to N, where M and M have binary relations -/
-class EquivHom (F : Type) (M N : outParam Type) [HasEquiv M] [HasEquiv N] extends
+/-- [semi-bundled] A type F behaves like a relation morphism from M to N at each index  -/
+class NonExpansive (F : Type) (M N : outParam Type) [IRel M] [IRel N] extends
      FunLike F M N where
-  hom : ∀ f : F, ∀ x y, (x ≈ y) -> (f x ≈ f y)
+  unif_hom : ∀ f : F, is_nonexpansive f
 
-/-- A type F behaves like a relation morphism from M to N at each index  -/
-class IndexedEquivHom (F : Type) (M N : outParam Type) [HasIndexedEquiv M] [HasIndexedEquiv N] extends
-     FunLike F M N where
-  unif_hom : ∀ f : F, ∀ {n : Nat}, ∀ x y, (x ≈[n] y) -> (f x ≈[n] f y)
-
-abbrev NonExpansive (F : Type) (M N : Type) [HasIndexedEquiv M] [HasIndexedEquiv N] :=
-  IndexedEquivHom F M N
-
-/--
-A map is contractive
--/
-def is_contractive {M N : Type} [HasIndexedEquiv M] [HasIndexedEquiv N] (f : M -> N) : Prop :=
+/-- [unbundled] A map is contractive -/
+def is_contractive {M N : Type} [IRel M] [IRel N] (f : M -> N) : Prop :=
   ∀ n, ∀ t t', (∀ m, m < n -> t ≈[m] t') -> (f t) ≈[n] (f t')
 
-/--
-F is a type that behaves like a contractive map from M to N
--/
-class ContractiveEquivHom {M N : Type} (F : Type) [HasIndexedEquiv M] [HasIndexedEquiv N] extends IndexedEquivHom F M N where
-    contractive : ∀ f : F, is_contractive f
+/-- [semi-bundled] all elements of F behave like contractive maps -/
+class Contractive (F : Type) (M N : outParam Type) [IRel M] [IRel N] extends
+      NonExpansive F M N where
+    contractive : ∀ f, is_contractive (f : M -> N)
 
-
-
-
-
-
-/-- An element in an indexed relation is discrete -/
+/-- [unbundled] An element in an indexed relation is discrete -/
 @[simp]
-def is_discrete [HasIndexedEquiv T] (e : T) : Prop := ∀ y, (e ≈[0] y) -> e = y
+def is_discrete [IRel T] (e : T) : Prop := ∀ y, (e ≈[0] y) -> e = y
 
-/-- A discrete OFE is an OFE where all elements are discrete -/
-class DiscreteOFE (T : Type) extends HasIndexedEquiv T where
+/-- [semi-bundled] A discrete OFE is an OFE where all elements are discrete -/
+class DiscreteOFE (T : Type) extends IRel T where
   discrete : ∀ (x : T), is_discrete x
 
-/-
-/-- The discrete OFE over a type -/
-@[simp]
-def discreteO (T : Type) : IndexedRelation T := fun _ => Eq
-prefix:max  "Δ"   => discreteO
+/-- A wrapper around a type to treat it as if it's in the discrete OFE -/
+structure discreteO (T : Type u) : Type u where
+  t : T
 
-instance discrete_iequiv : HasIndexedEquiv T where
-  iequiv := discreteO T
+prefix:max  "Δ"  => discreteO
 
-instance discreteO_equivalence (T : Type) (n : Nat) : Equivalence (Δ T n) where
-  refl  := by simp
-  trans := by simp
-  symm  := by simp
+instance (T : Type*) : Coe (Δ T) T where
+  coe := discreteO.t
 
-instance discreteO_indexedsetoid (T : Type) : IndexedSetoid T where
-  iseqv := discreteO_equivalence T
+instance (T : Type*) : IRel (Δ T) where
+  irel _ := Eq
 
-instance discreteO_ofe (T : Type) : OFE T where
-  mono  := by simp
-  limit := by simp
+instance (T : Type) : DiscreteOFE (Δ T) where
+  discrete := by simp [IRel.irel]
 
-instance discreteO_discrete_ofe (T : Type) : DiscreteOFE T where
-  discrete := by simp
--/
+instance (T : Type) : OFE (Δ T) where
+  equiv := by
+    simp [IRel.irel]
+    constructor <;> simp
+  mono  := by simp [IRel.irel]
+  limit := by simp [IRel.irel]
 
-/-
 
--- An object in the category of OFE's
--- FIXME: Use the actual ConcreteCategory machinery
-structure OFECat : Type 2 where
-  α : Type
-  -- I could still unbundle R here
-  ofe : OFE α := by infer_instance
-
-structure OFEHom : Type 2 where
-  α : Type
-  β : Type
-  F : Type
+/-- A term which behaves like a map which is nonexpansive -/
+@[ext]
+structure nonexpansiveO (F M N : Type) [IRel M] [IRel N] [FunLike F M N] : Type where
   f : F
-  hom : NonExpansive α β F := by infer_instance
+  is_nonexpansive : is_nonexpansive f
 
--/
+instance (F M N : Type) [IRel M] [IRel N] [FunLike F M N] : FunLike (nonexpansiveO F M N) M N where
+  coe e := e.f
+  coe_injective' _ _ := by
+    simp [DFunLike.coe]
+    exact nonexpansiveO.ext
 
+-- notation:80  a:81 " -n> " b:79 => @nonexpansiveO a b (a -> b)
 
+-- All values in type (nonexpansiveO F M N) behave like nonexpansive maps from M to N
+instance (M N : outParam Type) (F : Type) [IRel M] [IRel N] [FunLike F M N]  :
+    @NonExpansive (nonexpansiveO F M N) M N _ _ where
+  unif_hom f := by
+    rcases f
+    simp [DFunLike.coe]
+    trivial
 
+-- You give me: a value in a type you've proven to consist of nonexpansive maps
+-- I give you: a value of type nonexpansiveO
+def nonexpansiveO.of (F M N : Type) [IRel M] [IRel N] [f : NonExpansive F M N] (f : F) : nonexpansiveO F M N where
+  f := f
+  is_nonexpansive := by apply @NonExpansive.unif_hom
 
-/--
-OFE structure on nonexpansive types
--/
-@[simp]
-def nonexpansiveO {M N : Type} (F : Type) [HasIndexedEquiv M] [HasIndexedEquiv N] [NonExpansive F M N] : IndexedRelation F :=
-  fun n f g => ∀ x : M, f x ≈[n] g x
+instance [IRel M] [IRel N] [FunLike F M N] : IRel (nonexpansiveO F M N) where
+  irel n f g := ∀ x : M, f x ≈[n] g x
 
-instance nonexpansiveO_equivalence (n : Nat) [HasIndexedEquiv M] [HasIndexedEquiv N] [NonExpansive F M N] :
-    Equivalence (nonexpansiveO F n) where
-  refl  := by
+-- This proof doesn't use the OFE property??? Works for a more general structure?
+instance [OFE M] [OFE N] [FunLike F M N] : OFE (nonexpansiveO F M N) where
+  equiv := by
     simp
-    sorry
-  trans := by
-    simp
-    intro _ _ _ Hx Hy _
-    -- simp [Hx, Hy]
-    sorry
-  symm  := by
-    simp
-    intro _ _ H _
-    -- simp [H]
-    sorry
-
-instance nonexpansiveO_hasindexedequiv [HasIndexedEquiv M] [HasIndexedEquiv N] [NonExpansive F M N] : HasIndexedEquiv F where
-  iequiv := nonexpansiveO F
-
-instance nonexpansiveO_indexedsetoid [HasIndexedEquiv M] [HasIndexedEquiv N] [NonExpansive F M N] : IndexedSetoid F where
-  iseqv n := nonexpansiveO_equivalence n
-
-instance nonexpansiveO_ofe [HasIndexedEquiv M] [HasIndexedEquiv N] [NonExpansive F M N] : OFE F where
+    intro n
+    rcases (@OFE.equiv N _ n) with ⟨ ENR, ENS, ENT ⟩
+    simp_all [IRel.irel]
+    constructor
+    · intro _ _
+      apply ENR
+    · intro _ _ H1 _
+      apply ENS
+      apply H1
+    · intro _ _ _ H1 H2 _
+      apply ENT
+      · apply H1
+      · apply H2
   mono  := by
-    simp
-    sorry
+    simp [IRel.irel]
+    intro n m f g Hmn H x
+    apply (@OFE.mono N _ n m (f x) (g x) Hmn)
+    apply H
   limit := by
-    simp
-    -- exact Iff.symm DFunLike.ext_iff
-    sorry
+    have X1 := (@OFE.limit N _ )
+    have X2 := (@OFE.limit M _ )
+    simp_all [IRel.irel]
+    intro f g
+    apply Iff.intro
+    · intro H
+      apply nonexpansiveO.ext
+      apply DFunLike.ext
+      intro m
+      apply (@X1 (f.f m) (g.f m)).mp
+      intro n
+      apply H
+    · intro H n x
+      subst H
+      rcases (@OFE.equiv N _ n) with ⟨ ENR, _, _⟩
+      apply ENR
 
 
 
-/--
-The type of step-indexed propositions
--/
-abbrev SProp := { sp : Nat -> Prop // ∀ n m : Nat, n ≥ m -> sp n -> sp m }
 
-@[simp]
-def SProp_imp (n : Nat) (sp0 sp1 : SProp) : Prop :=  ∀ m, m ≤ n -> (sp0.1 m -> sp1.1 m)
+/-- The type of step-indexed propositions -/
+@[ext]
+structure SProp where
+  sp : Nat -> Prop
+  sp_down_closed : ∀ n m : Nat, m ≤ n -> sp n -> sp m
 
-@[simp]
-def SPropO : IndexedRelation SProp := fun n sp0 sp1 => ∀ m, m ≤ n -> (sp0.1 m <-> sp1.1 m)
+instance : CoeFun SProp (fun _ => (Nat -> Prop)) where
+  coe s := s.1
 
-instance SPropO_equivalence (n : Nat) : Equivalence (SPropO n) where
-  refl  := by simp
-  trans := by
-    intros x y z
-    cases x
-    cases y
-    cases z
-    simp_all
-  symm  := by
-    intros x y
-    cases x
-    cases y
-    simp_all
+instance : IRel SProp where
+  irel n sp1 sp2 := ∀ m, m ≤ n -> (sp1 m <-> sp2 m)
 
-instance SPropO_iequiv : HasIndexedEquiv SProp where
-  iequiv := SPropO
 
-instance SPropO_indexedsetoid : IndexedSetoid SProp where
-  iseqv n := SPropO_equivalence n
-
-/-
-instance SPropO_OFE : OFE SProp where
+instance : OFE SProp where
+  equiv := by
+    simp [IRel.irel]
+    intro n
+    constructor
+    · intros; rfl
+    · intro _ _ H _ Hmn
+      symm
+      apply H
+      apply Hmn
+    · intro _ _ _ H1 H2 _ Hnm
+      trans
+      · apply H1
+        trivial
+      · apply H2
+        trivial
   mono  := by
-    intros m n x y Hmn S0
-    simp_all only [HasIndexedEquiv.iequiv]
-    intro m' m'n
-    rcases x with ⟨ p1, Hp1 ⟩
-    rcases y with ⟨ p2, Hp2 ⟩
+    simp [IRel.irel]
+    intro m n x y Hmn H1 m' Hm'
+    rcases x with ⟨ x, Hx ⟩
+    rcases y with ⟨ y, Hy ⟩
     simp_all
     apply Iff.intro
-    · sorry
-      -- what
-    · intro Hp2'
-      simp_all
+    · intro z
+      -- apply Hy
       sorry
+    · sorry
   limit := by
-    simp
-    sorry
--/
+    simp [IRel.irel]
+    intro x y
+    apply Iff.intro
+    · intro H
+      apply SProp.ext
+      apply funext
+      intro z
+      apply propext
+      apply H z
+      apply Nat.le_refl
+    · intro H
+      subst H
+      simp
 
 
-/--
-c satisfies the chain property
--/
+
+/-- [unbundled] c satisfies the chain property -/
 @[simp]
-def is_chain {α : Type} [HasIndexedEquiv α] (c : Nat -> α) : Prop :=
+def is_chain {α : Type*} [IRel α] (c : Nat -> α) : Prop :=
   ∀ {m n : Nat}, n ≤ m -> (c m) ≈[n] (c n)
 
-/--
-The type of functions which satisfy the chain property
--/
-abbrev Chain (α : Type) [HasIndexedEquiv α] := { c : Nat -> α // is_chain c }
+/-- The type of functions which satisfy the chain property -/
+abbrev Chain (α : Type*) [IRel α] := { c : Nat -> α // is_chain c }
+
+instance (α : Type*) [IRel α] : CoeFun (Chain α) (fun _ => (Nat -> α)) where
+  coe s := s.1
 
 class COFE (α : Type) extends OFE α where
   lim : Chain α -> α
-  complete : ∀ {n : Nat}, ∀ {c : Chain α}, (lim c) ≈[n] (c.1 n)
+  complete : ∀ {n : Nat}, ∀ {c : Chain α}, (lim c) ≈[n] (c n)
 
 
-
-def fixpoint_chain {α : Type} (f : α -> α) [OFE α] [Inhabited α] (H : is_contractive f) : Chain α :=
+def fixpoint_chain {α : Type} (f : α -> α) (O : OFE α) [Inhabited α] (H : is_contractive f) : Chain α :=
   ⟨ fun n => Nat.repeat f n default,
     by
-      simp only [is_chain, HasIndexedEquiv.iequiv]
+      simp only [is_chain, IRel.irel]
       intro n
       induction n
       · simp
-
-
         sorry
-      -- rename_i n IH
-      -- intro n' Hn'
-      -- cases (Nat.eq_or_lt_of_le Hn')
-      -- · simp_all
-      -- rename_i h'
-      -- rw [<- IH (Nat.le_of_lt_succ h')]
-      sorry
-      ⟩
+      rename_i n IH
+      intro n' Hn'
+      cases (Nat.eq_or_lt_of_le Hn')
+      · simp_all
+        sorry
+      rename_i h'
+      -- have IH' := @IH n' (Nat.le_of_lt_succ h')
+      unfold is_contractive at H
+      have H'' := H n' (Nat.repeat f (n + 1) default ) (Nat.repeat f n' default) ?G1
+      case G1 =>
+        intro m Hmn'
+        sorry
+      sorry ⟩
+
+
+
+
+/-
+-- Typeclass which mimics Order hierarchy
+
+-- Type which specifies an OFE, and higher instance priority for specified OFE's (lower for trivial OFE's)?
+
+-- Category: Like in Order/Cateogry/Lat.lean
+
+-- Use Type* instead of type
+
+
+
+
 
 
 
@@ -365,4 +370,23 @@ def EquivHom_comp (h0 : EquivHom R R') (h1 : EquivHom R' R'') : EquivHom R R'' :
   ⟨ _,  is_EquivHom_comp h0.2 h1.2 ⟩
 
 -/
+-/
+-/
+
+/-
+
+-- An object in the category of OFE's
+-- FIXME: Use the actual ConcreteCategory machinery
+structure OFECat : Type 2 where
+  α : Type
+  -- I could still unbundle R here
+  ofe : OFE α := by infer_instance
+
+structure OFEHom : Type 2 where
+  α : Type
+  β : Type
+  F : Type
+  f : F
+  hom : NonExpansive α β F := by infer_instance
+
 -/
