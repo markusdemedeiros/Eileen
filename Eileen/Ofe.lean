@@ -7,6 +7,10 @@ import mathlib.Data.FunLike.Basic
 -- import mathlib.CategoryTheory.ConcreteCategory.Basic
 import mathlib.Order.Basic
 
+-- NOTE / Skipped
+--  - Apparently inferring the right OFE is hard for CMRA's and unital CMRA's (ln. 100)
+--  - Bundled type
+--  + 160
 
 /-- A type with a binary relation -/
 abbrev Rel.{u} (T : Type u) := HasEquiv T
@@ -33,7 +37,7 @@ def is_indexed_equiv {T : Type u} (R : ℕ -> T -> T -> Prop) : Prop :=
 /-- [unbundled] ... -/
 @[simp]
 def is_indexed_mono {T : Type u} (R : ℕ -> T -> T -> Prop) : Prop :=
-  ∀ {m n : Nat}, ∀ {x y : T}, m ≤ n -> R m x y -> R n x y
+  ∀ {m n : Nat}, ∀ {x y : T}, m < n -> R m x y -> R n x y -- < or ≤ ?
 
 /-- [unbundled] ... -/
 @[simp]
@@ -44,7 +48,7 @@ def indexed_refines_eq {T : Type u} (R : ℕ -> T -> T -> Prop) : Prop :=
 class OFE (T : Type u) extends (IRel T) where
   equiv : is_indexed_equiv toIRel.irel
   mono : is_indexed_mono toIRel.irel
-  limit : indexed_refines_eq toIRel.irel
+  limit : indexed_refines_eq toIRel.irel -- In coq it refines an equivalence rather than an equality
 
 
 /-- [unbundled] ... -/
@@ -229,41 +233,94 @@ instance : OFE SProp where
 
 /-- [unbundled] c satisfies the chain property -/
 @[simp]
-def is_chain {α : Type*} [IRel α] (c : Nat -> α) : Prop :=
+def chain_is_cauchy {α : Type*} [IRel α] (c : Nat -> α) : Prop :=
   ∀ {m n : Nat}, n ≤ m -> (c m) ≈[n] (c n)
 
 /-- The type of functions which satisfy the chain property -/
-abbrev Chain (α : Type*) [IRel α] := { c : Nat -> α // is_chain c }
+abbrev Chain (α : Type*) [IRel α] := { c : Nat -> α // chain_is_cauchy c }
 
 instance (α : Type*) [IRel α] : CoeFun (Chain α) (fun _ => (Nat -> α)) where
   coe s := s.1
 
+def Chain.map {α β : Type} [IRel α] [IRel β] (f : α -> β) (c : Chain α) (Hf : is_nonexpansive f) : Chain β where
+  val := f ∘ c
+  property := by
+    rcases c with ⟨ c', Hc' ⟩
+    simp [chain_is_cauchy, DFunLike.coe ]
+    intros m n Hnm
+    simp at Hc'
+    apply Hf
+    apply Hc'
+    apply Hnm
+
 class COFE (α : Type) extends OFE α where
   lim : Chain α -> α
-  complete : ∀ {n : Nat}, ∀ {c : Chain α}, (lim c) ≈[n] (c n)
+  complete : ∀ {n : Nat}, ∀ (c : Chain α), (lim c) ≈[n] (c n)
+
+lemma COFE.map {α β : Type} [COFEα: COFE α] [COFEβ : COFE β] (f : α -> β) (c : Chain α) (Hf : is_nonexpansive f) :
+    lim (Chain.map f c Hf) = f (lim c) := by -- Iris: Equiv
+  apply OFE.limit.mp
+  intro n
+  apply @(@COFEβ.equiv n).trans _ _ _ _ ?G
+  case G =>
+    apply Hf
+    apply (@COFEα.equiv n).symm
+    apply @COFEα.complete
+  apply @(@COFEβ.equiv n).trans _ _ _ ?G
+  case G =>
+    apply @COFEβ.complete
+  unfold Chain.map
+  simp
+  apply @(@COFEβ.equiv n).refl
 
 
-def fixpoint_chain {α : Type} (f : α -> α) (O : OFE α) [Inhabited α] (H : is_contractive f) : Chain α :=
-  ⟨ fun n => Nat.repeat f n default,
-    by
-      simp only [is_chain, IRel.irel]
-      intro n
-      induction n
-      · simp
-        sorry
-      rename_i n IH
-      intro n' Hn'
-      cases (Nat.eq_or_lt_of_le Hn')
-      · simp_all
-        sorry
-      rename_i h'
-      -- have IH' := @IH n' (Nat.le_of_lt_succ h')
-      unfold is_contractive at H
-      have H'' := H n' (Nat.repeat f (n + 1) default ) (Nat.repeat f n' default) ?G1
-      case G1 =>
-        intro m Hmn'
-        sorry
-      sorry ⟩
+
+def contractive0 {α : Type} (f : α -> α) (O : OFE α) [Inhabited α] (H : is_contractive f) x y :
+    f x ≈[ 0 ] f y := by
+  apply H
+  simp
+
+def contractiveS {α : Type} (f : α -> α) (O : OFE α) [Inhabited α] (H : is_contractive f) x y n :
+    (f x ≈[ n ] f y) -> f x ≈[ n + 1 ] f y := by
+  sorry
+
+
+-- def fixpoint_chain {α : Type} (f : α -> α) (O : OFE α) [Inhabited α] (H : is_contractive f) : Chain α :=
+--   ⟨ fun n => Nat.repeat f (n + 1) default,
+--     by
+--       simp only [is_chain, IRel.irel]
+--       intro n
+--       induction n
+--       · simp
+--         sorry
+--       rename_i n IH
+--       intro n' Hn'
+--
+--       cases (Nat.eq_or_lt_of_le Hn')
+--       · simp_all
+--         sorry
+--       rename_i h'
+--       -- have IH' := @IH n' (Nat.le_of_lt_succ h')
+--       unfold is_contractive at H
+--       simp [Nat.repeat]
+--
+--       -- have H'' := H n' (Nat.repeat f (n + 1) default ) (Nat.repeat f n' default) ?G1
+--       -- case G1 =>
+--       --   intro m Hmn'
+--       --   sorry
+--       sorry ⟩
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
