@@ -165,6 +165,9 @@ lemma iLater_is_indexed_refinement {T : Type} (R : irelation T) (R' : relation T
     trivial
 
 
+
+
+
 /-
 # Typeclass hierarchy (semi-bundled)
 -/
@@ -245,6 +248,7 @@ lemma OFE.dist_le [OFE T] {x y : T} {m n : ℕ} : (x ≈[n] y) -> (m ≤ n) -> (
 ## Bundled OFE's
 -/
 
+-- NOTE: Not sure if this is the best way to organize this
 -- FIXME: Can I define Contractive and NonExpansive in a hierachy somehow?
 -- see MulHom
 -- see SemiRingCat.Hom
@@ -275,14 +279,16 @@ instance (M N : Type) [IRel M] [IRel N] : NonExpansiveClass (NonExpansive M N) M
     apply f.unif_hom
 
 
-def NonExpansiveClass.toNonExpansive [IRel M] [IRel N] [FunLike F M N] [NonExpansiveClass F M N] (f : F) :
-    NonExpansive M N where
-  toFun := sorry
-  unif_hom := sorry
+-- def NonExpansiveClass.toNonExpansive [IRel M] [IRel N] [FunLike F M N] [C : NonExpansiveClass F M N] (f : F) :
+--     NonExpansive M N where
+--   toFun := f
+--   unif_hom := by
+--     let Z := (C.unif_hom f)
+--     sorry
 
-instance [IRel M] [IRel N] [FunLike F M N] [NonExpansiveClass F M N] (f : F) :
-    CoeTC F (NonExpansive M N)  where
-  coe := sorry
+-- instance [IRel M] [IRel N] [FunLike F M N] [NonExpansiveClass F M N] (f : F) :
+--     CoeTC F (NonExpansive M N)  where
+--   coe := sorry
 
 /-- [bundled] OFE -/
 abbrev OFECat := CategoryTheory.Bundled OFE
@@ -291,25 +297,25 @@ instance : CoeSort OFECat Type where
   coe := CategoryTheory.Bundled.α
 
 -- @[reducible, inline]
-@[inline]
-abbrev OFECat.of (T : Type) [OFE T] : OFECat := { α := T, str := by infer_instance }
+-- @[inline]
+-- abbrev OFECat.of (T : Type) [OFE T] : OFECat := { α := T, str := by infer_instance }
 
-instance (A : OFECat) : OFE A where
-  rel := sorry
-  irel := sorry
-  equivalence := sorry
-  equiv := sorry
-  mono := sorry
-  limit := sorry
+-- instance (A : OFECat) : OFE A where
+--   rel := sorry
+--   irel := sorry
+--   equivalence := sorry
+--   equiv := sorry
+--   mono := sorry
+--   limit := sorry
 
-lemma OFECat.coe_of (T : Type) [OFE T] : OFECat.of T = T :=
-  sorry
-
-lemma OFECat.of_carrier (T : OFECat) : OFECat.of T = T :=
-  sorry
-
-structure OFECat.Hom (A : OFECat) (B : OFECat) where
-  hom : NonExpansive A B
+-- lemma OFECat.coe_of (T : Type) [OFE T] : OFECat.of T = T :=
+--   sorry
+--
+-- lemma OFECat.of_carrier (T : OFECat) : OFECat.of T = T :=
+--   sorry
+--
+-- structure OFECat.Hom (A : OFECat) (B : OFECat) where
+--   hom : NonExpansive A B
 
 -- instance OFECat.instCategory : CategoryTheory.Category OFECat where
 
@@ -328,12 +334,12 @@ class ContractiveClass (F : Type) (M N : outParam Type) [IRel M] [IRel N] extend
     FunLike F M N where
   contractive : ∀ f : F, contractive f
 
-instance (M N : Type) [IRel M] [IRel N] : FunLike (Contractive M N) M N where
-  coe := sorry
-  coe_injective' := sorry
-
-instance (M N : Type) [IRel M] [IRel N] : ContractiveClass (Contractive M N) M N where
-  contractive := sorry
+-- instance (M N : Type) [IRel M] [IRel N] : FunLike (Contractive M N) M N where
+--   coe := sorry
+--   coe_injective' := sorry
+--
+-- instance (M N : Type) [IRel M] [IRel N] : ContractiveClass (Contractive M N) M N where
+--   contractive := sorry
 
 
 
@@ -373,7 +379,7 @@ instance (T : Type*) : Rel (Δ T) where
   rel := Eq
 
 instance (T : Type*) : ERel (Δ T) where
-  equivalence := sorry
+  equivalence := by apply Equivalence.mk <;> simp
 
 instance (T : Type) : OFE (Δ T) where
   equiv := by
