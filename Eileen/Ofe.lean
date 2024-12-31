@@ -216,6 +216,7 @@ class OFE (T : Type) extends ERel T, IRel T where
   mono : @is_indexed_mono T IRel.irel
   limit : @is_indexed_refinement T IRel.irel Rel.rel
 
+-- FIXME: Change this name. It's "indexed reflexive" but it looks like "irreflexive"
 /-- Lifted property of indexed relation from OFE -/
 lemma OFE.irefl [OFE T] {n : ℕ} {x : T} : (x ≈[n] x) :=
   Equivalence.refl (OFE.equiv n) x
@@ -240,6 +241,32 @@ lemma OFE.trans [OFE T] {x y z : T} : (x ≈ y) -> (y ≈ z) -> x ≈ z := Equiv
 lemma OFE.dist_le [OFE T] {x y : T} {m n : ℕ} : (x ≈[n] y) -> (m ≤ n) -> (x ≈[m] y) := by
   apply is_indexed_mono_le
   apply OFE.mono
+
+
+/- Lifted iLater properties -/
+-- FIXME: Cleanup
+
+lemma OFE.rel_later_iLater [OFE T] : (x ≈[n] y) -> (ilater (@IRel.irel T _)) n x y := by
+  intro H
+  apply _root_.rel_later_iLater
+  · apply OFE.mono
+  · apply H
+
+lemma OFE.iLater_lt_rel [OFE T] (x y : T) (m n : ℕ) :
+    m < n -> (ilater (@IRel.irel T _)) n x y -> x ≈[m] y := by
+  intro H1 H2
+  apply _root_.iLater_lt_rel
+  · apply H1
+  · apply H2
+
+lemma OFE.iLater_0 [OFE T] (x y : T) : (ilater IRel.irel) 0 x y := by
+  apply _root_.iLater_0
+
+lemma OFE.iLater_S [OFE T] {x y : T} {n : ℕ} : (x ≈[n] y) <-> (ilater (@IRel.irel T _) (Nat.succ n) x y) := by
+  apply _root_.iLater_S
+  apply OFE.mono
+
+
 
 
 
@@ -490,32 +517,32 @@ lemma COFE.lim_const {α : Type} [COFE α] (x : α) :
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 /-
-def contractive0 {α β: Type} (f : α -> β) [OFEα : OFE α] [OFE β] [Inhabited α] (H : is_contractive f) x y :
+## Contractive functions
+-/
+
+
+lemma contractive0 {α β: Type} (f : α -> β) [OFEα : OFE α] [OFE β] [Inhabited α] (H : contractive f) x y :
     f x ≈[ 0 ] f y := by
   apply H
-  simp
+  apply iLater_0
 
-def contractiveS {α β : Type} (f : α -> β) [OFEα : OFE α] [OFE β] [Inhabited α] (H : is_contractive f) x y n :
+lemma contractiveS {α β : Type} (f : α -> β) [OFE α] [OFE β] (H : contractive f) x y n :
     (x ≈[ n ] y) -> f x ≈[ n + 1 ] f y := by
-  intro H1
+  intro _
   apply H
-  intro m Hnm
-  -- have X := @OFEα.mono m
-  sorry
+  apply OFE.iLater_S.mp
+  trivial
+
+lemma contractive_iLater {α β : Type} (f : α -> β) [OFE α] [OFE β] (H : contractive f) x y n :
+    (ilater (@IRel.irel α _) n x y) -> f x ≈[ n ] f y := by
+  intro _
+  apply H
+  trivial
+
+lemma const_contractive {α β: Type} [OFE α] [OFE β] (x : β) : @contractive α β _ _ (fun _ => x) := by
+  intro _ _ _ _
+  apply OFE.irefl
 
 
 
@@ -682,7 +709,6 @@ structure OFEHom : Type 2 where
   f : F
   hom : NonExpansive α β F := by infer_instance
 
--/
 -/
 
 /-
