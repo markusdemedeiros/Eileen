@@ -4,70 +4,259 @@ Authors: Markus de Medeiros
 
 -- import mathlib.CategoryTheory.Category.Basic
 import mathlib.Data.FunLike.Basic
+import Mathlib.CategoryTheory.ConcreteCategory.Bundled
 -- import mathlib.CategoryTheory.ConcreteCategory.Basic
 import mathlib.Order.Basic
+
 
 -- NOTE / Skipped
 --  - Apparently inferring the right OFE is hard for CMRA's and unital CMRA's (ln. 100)
 --  - Bundled type
 --  + 160
 
-/-- A type with a binary relation -/
-abbrev Rel.{u} (T : Type u) := HasEquiv T
 
-abbrev rel (T : Type u) [HasEquiv T] := @HasEquiv.Equiv T
+/--
+A proper map wrt. two relations
+FIXME: Move if right
+-/
+@[simp]
+def is_proper_1 {T1 T2 : Type} (R1 : T1 -> T1 -> Prop) (R2 : T2 -> T2 -> Prop) (f : T1 -> T2) : Prop :=
+  ∀ {x y : T1}, R1 x y -> R2 (f x) (f y)
 
-/-- An indexed binary relation (dupe of std) -/
-class IRel.{u} (T : Type u) where
-  irel : ℕ -> T -> T -> Prop
+/--
+A proper map wrt. three relations
+FIXME: Move if right
+-/
+@[simp]
+def is_proper_2 {T1 T2 T3 : Type} (R1 : T1 -> T1 -> Prop) (R2 : T2 -> T2 -> Prop) (R3 : T3 -> T3 -> Prop) (f : T1 -> T2 -> T3) : Prop :=
+  ∀ {x y : T1} {z w : T2}, R1 x y -> R2 z w -> R3 (f x z) (f y w)
 
-notation:30 a1 " ≈[ " n " ] "  a2 => IRel.irel n a1 a2
+
+/-
+# Basic props
+-/
+
 
 /-- [unbundled] A relation is an equivalence relation  -/
 @[simp]
-abbrev is_equivalence_relation {T : Type u} (R : T -> T -> Prop) :=
+abbrev is_equiv_rel {T : Type u} (R : T -> T -> Prop) :=
   Equivalence R
 
-
-/-- [unbundled] A relation is an indexed equivalence relation  -/
+/-- [unbundled] An indexed relation is an indexed equivalence relation  -/
 @[simp]
 def is_indexed_equiv {T : Type u} (R : ℕ -> T -> T -> Prop) : Prop :=
-  ∀ n : ℕ, is_equivalence_relation (R n)
+  ∀ n : ℕ, is_equiv_rel (R n)
 
-/-- [unbundled] ... -/
+/-- [unbundled] the indexed relation is down-closed -/
 @[simp]
 def is_indexed_mono {T : Type u} (R : ℕ -> T -> T -> Prop) : Prop :=
-  ∀ {m n : Nat}, ∀ {x y : T}, m < n -> R m x y -> R n x y -- < or ≤ ?
+  ∀ {m n : Nat}, ∀ {x y : T}, m < n -> R n x y -> R m x y
 
-/-- [unbundled] ... -/
+/-- [unbundled] the indexed relation R refines the relation R' -/
 @[simp]
-def indexed_refines_eq {T : Type u} (R : ℕ -> T -> T -> Prop) : Prop :=
-  ∀ {x y : T}, (∀ n, R n x y) <-> x = y
+def is_indexed_refinement {T : Type u} (R : ℕ -> T -> T -> Prop) (R' : T -> T -> Prop) : Prop :=
+  ∀ {x y : T}, (∀ n, R n x y) <-> R' x y
 
-/-- [semi-bundled] an OFE is an indexed relation that is an equivalence relation at each stpe -/
-class OFE (T : Type u) extends (IRel T) where
-  equiv : is_indexed_equiv toIRel.irel
-  mono : is_indexed_mono toIRel.irel
-  limit : indexed_refines_eq toIRel.irel -- In coq it refines an equivalence rather than an equality
+/-- [unbundled] R forms an OFE with respect to R' -/
+@[simp]
+def is_ofe {T : Type u} (R : ℕ -> T -> T -> Prop) (R' : T -> T -> Prop) : Prop :=
+  is_indexed_equiv R ∧
+  is_indexed_mono R ∧
+  is_indexed_refinement R R'
+
+/-- A relation that is one later than R -/
+def ilater {T : Type} (R : ℕ -> T -> T -> Prop) (n : ℕ) (x y : T) : Prop :=
+  ∀ m, m < n -> R m x y
+
+/-- [unbundled] A function is nonexpansive wrt. two indexed equivalences -/
+def is_nonexpansive {M N : Type} (RM : ℕ -> M -> M -> Prop) (RN : ℕ -> N -> N -> Prop) (f : M -> N) : Prop :=
+  ∀ (n : Nat), is_proper_1 (RM n) (RN n) f
+
+/-- [unbundled] A function is contractive wrt. two indexed equivalences -/
+def is_contractive {M N : Type} (RM : ℕ -> M -> M -> Prop) (RN : ℕ -> N -> N -> Prop) (f : M -> N) : Prop :=
+  ∀ (n : Nat), is_proper_1 ((ilater RM) n) (RN n) f
 
 
-/-- [unbundled] ... -/
-def is_nonexpansive {M N : Type} [IRel M] [IRel N] (f : M -> N) : Prop :=
-  ∀ (n : Nat), ∀ x y, (x ≈[n] y) -> (f x ≈[n] f y)
 
-/-- [semi-bundled] A type F behaves like a relation morphism from M to N at each index  -/
-class NonExpansive (F : Type) (M N : outParam Type) [IRel M] [IRel N] extends
+
+
+/-
+# Typeclass hierarchy (semi-bundled)
+-/
+
+/--
+A type with a binary relation
+Note: Dupe of std
+-/
+class Rel (T : Type u) where
+  rel : T -> T -> Prop
+
+notation:30 a1 " ≈ "  a2 => Rel.rel a1 a2
+
+attribute [simp] Rel.rel
+
+/--
+An equivalence relation
+-/
+class ERel (T : Type u) extends Rel T where
+  equivalence : Equivalence (@Rel.rel T _)
+
+
+/--
+An indexed binary relation
+Note: duplicate  of std.
+-/
+class IRel.{u} (T : Type u) where
+  /-- The indexed binary operation on a type -/
+  irel : ℕ -> T -> T -> Prop
+
+attribute [simp] IRel.irel
+
+notation:30 a1 " ≈[ " n " ] "  a2 => IRel.irel n a1 a2
+
+/-- A function between IRels is nonexpansive -/
+def nonexpansive [M : IRel T1] [N : IRel T2] (f : T1 -> T2): Prop :=
+  is_nonexpansive M.irel N.irel f
+
+/-- A function between IRels is contractive  -/
+def contractive [M : IRel T1] [N : IRel T2] (f : T1 -> T2): Prop :=
+  is_contractive M.irel N.irel f
+
+/-- [Semi-bundled] T has an OFE structure -/
+class OFE (T : Type u) extends ERel T, IRel T where
+  equiv : @is_indexed_equiv T IRel.irel
+  mono : @is_indexed_mono T IRel.irel
+  limit : @is_indexed_refinement T IRel.irel Rel.rel
+
+/-- Lifted property of indexed relation from OFE -/
+lemma OFE.irefl [OFE T] {n : ℕ} {x : T} : (x ≈[n] x) :=
+  Equivalence.refl (OFE.equiv n) x
+
+/-- Lifted property of indexed relation from OFE -/
+lemma OFE.isymm [OFE T] {n : ℕ} {x y : T} : (x ≈[n] y) -> y ≈[n] x :=
+  Equivalence.symm (OFE.equiv n)
+
+/-- Lifted property of indexed relation from OFE -/
+lemma OFE.itrans [OFE T] {n : ℕ} {x y z : T} : (x ≈[n] y) -> (y ≈[n] z) -> x ≈[n] z :=
+  Equivalence.trans (OFE.equiv n)
+
+/-- Lifted property of relation from OFE -/
+lemma OFE.refl [OFE T] {x : T} : (x ≈ x) := Equivalence.refl ERel.equivalence x
+
+/-- Lifted property of relation from OFE -/
+lemma OFE.symm [OFE T] {x y : T} : (x ≈ y) -> y ≈ x := Equivalence.symm ERel.equivalence
+
+/-- Lifted property of relation from OFE -/
+lemma OFE.trans [OFE T] {x y z : T} : (x ≈ y) -> (y ≈ z) -> x ≈ z := Equivalence.trans ERel.equivalence
+
+
+
+
+
+
+
+
+
+
+
+-- FIXME: Can I define Contractive and NonExpansive in a hierachy somehow?
+-- see MulHom
+-- see SemiRingCat.Hom
+
+class NonExpansive (M N : Type) [IRel M] [IRel N] where
+  toFun : M -> N
+  unif_hom : nonexpansive toFun
+notation:30 t1 " ==ne=> "  t2 => NonExpansive t1 t2
+
+attribute [simp] NonExpansive.toFun
+
+/-- [semi-bundled] A type F behaves like an irel morphism from M to N at each index  -/
+class NonExpansiveClass (F : Type) (M N : outParam Type) [IRel M] [IRel N] extends
      FunLike F M N where
-  unif_hom : ∀ f : F, is_nonexpansive f
+  unif_hom : ∀ f : F, nonexpansive f
 
-/-- [unbundled] A map is contractive -/
-def is_contractive {M N : Type} [IRel M] [IRel N] (f : M -> N) : Prop :=
-  ∀ n, ∀ t t', (∀ m, m < n -> t ≈[m] t') -> (f t) ≈[n] (f t')
+instance (M N : Type) [IRel M] [IRel N] : FunLike (NonExpansive M N) M N where
+  coe := fun F x => F.toFun x
+  coe_injective' := by
+    intro x y H
+    cases x
+    congr
 
-/-- [semi-bundled] all elements of F behave like contractive maps -/
-class Contractive (F : Type) (M N : outParam Type) [IRel M] [IRel N] extends
-      NonExpansive F M N where
-    contractive : ∀ f, is_contractive (f : M -> N)
+instance (M N : Type) [IRel M] [IRel N] : NonExpansiveClass (NonExpansive M N) M N where
+  unif_hom := by
+    simp [DFunLike.coe]
+    intro f
+    apply f.unif_hom
+
+
+def NonExpansiveClass.toNonExpansive [IRel M] [IRel N] [FunLike F M N] [NonExpansiveClass F M N] (f : F) :
+    NonExpansive M N where
+  toFun := sorry
+  unif_hom := sorry
+
+instance [IRel M] [IRel N] [FunLike F M N] [NonExpansiveClass F M N] (f : F) :
+    CoeTC F (NonExpansive M N)  where
+  coe := sorry
+
+/-- [bundled] OFE -/
+abbrev OFECat := CategoryTheory.Bundled OFE
+
+instance : CoeSort OFECat (Type u) where
+  coe := CategoryTheory.Bundled.α
+
+-- @[reducible, inline]
+@[inline]
+abbrev OFECat.of (T : Type) [OFE T] : OFECat := { α := T, str := by infer_instance }
+
+instance (A : OFECat) : OFE A where
+  rel := sorry
+  irel := sorry
+  equivalence := sorry
+  equiv := sorry
+  mono := sorry
+  limit := sorry
+
+lemma OFECat.coe_of (T : Type) [OFE T] : OFECat.of T = T :=
+  sorry
+
+lemma OFECat.of_carrier (T : OFECat) : OFECat.of T = T :=
+  sorry
+
+structure OFECat.Hom (A : OFECat) (B : OFECat) where
+  hom : NonExpansive A B
+
+-- instance OFECat.instCategory : CategoryTheory.Category OFECat where
+
+
+
+
+
+
+
+
+class Contractive (M N : Type) [IRel M] [IRel N]  where
+  toFun : M -> N
+  contractive : contractive toFun
+
+class ContractiveClass (F : Type) (M N : outParam Type) [IRel M] [IRel N] extends
+    FunLike F M N where
+  contractive : ∀ f : F, contractive f
+
+instance (M N : Type) [IRel M] [IRel N] : FunLike (Contractive M N) M N where
+  coe := sorry
+  coe_injective' := sorry
+
+instance (M N : Type) [IRel M] [IRel N] : ContractiveClass (Contractive M N) M N where
+  contractive := sorry
+
+
+
+
+
+
+
+
+
 
 /-- [unbundled] An element in an indexed relation is discrete -/
 @[simp]
@@ -89,6 +278,12 @@ instance (T : Type*) : Coe (Δ T) T where
 instance (T : Type*) : IRel (Δ T) where
   irel _ := Eq
 
+instance (T : Type*) : Rel (Δ T) where
+  rel := Eq
+
+instance (T : Type*) : ERel (Δ T) where
+  equivalence := sorry
+
 instance (T : Type) : DiscreteOFE (Δ T) where
   discrete := by simp [IRel.irel]
 
@@ -99,6 +294,13 @@ instance (T : Type) : OFE (Δ T) where
   mono  := by simp [IRel.irel]
   limit := by simp [IRel.irel]
 
+
+
+
+
+
+
+/-
 
 /-- A term which behaves like a map which is nonexpansive -/
 @[ext]
@@ -274,15 +476,21 @@ lemma COFE.map {α β : Type} [COFEα: COFE α] [COFEβ : COFE β] (f : α -> β
   apply @(@COFEβ.equiv n).refl
 
 
-
-def contractive0 {α : Type} (f : α -> α) (O : OFE α) [Inhabited α] (H : is_contractive f) x y :
+def contractive0 {α β: Type} (f : α -> β) [OFEα : OFE α] [OFE β] [Inhabited α] (H : is_contractive f) x y :
     f x ≈[ 0 ] f y := by
   apply H
   simp
 
-def contractiveS {α : Type} (f : α -> α) (O : OFE α) [Inhabited α] (H : is_contractive f) x y n :
-    (f x ≈[ n ] f y) -> f x ≈[ n + 1 ] f y := by
+def contractiveS {α β : Type} (f : α -> β) [OFEα : OFE α] [OFE β] [Inhabited α] (H : is_contractive f) x y n :
+    (x ≈[ n ] y) -> f x ≈[ n + 1 ] f y := by
+  intro H1
+  apply H
+  intro m Hnm
+  -- have X := @OFEα.mono m
   sorry
+
+
+
 
 
 -- def fixpoint_chain {α : Type} (f : α -> α) (O : OFE α) [Inhabited α] (H : is_contractive f) : Chain α :=
@@ -446,4 +654,5 @@ structure OFEHom : Type 2 where
   f : F
   hom : NonExpansive α β F := by infer_instance
 
+-/
 -/
