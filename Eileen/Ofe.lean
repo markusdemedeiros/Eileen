@@ -19,8 +19,6 @@ import Eileen.Proper
 -- FIXME: Generalize type unvierses
 
 /-
-
-/-
 # Basic props
 -/
 
@@ -31,8 +29,7 @@ abbrev irelation (T : Type) := ℕ -> T -> T -> Prop
 
 /-- [unbundled] A relation is an equivalence relation  -/
 @[simp]
-abbrev is_equiv_rel {T : Type} (R : relation T) :=
-  Equivalence R
+abbrev is_equiv_rel {T : Type} (R : relation T) := Equivalence R
 
 /-- [unbundled] An indexed relation is an indexed equivalence relation  -/
 @[simp]
@@ -57,16 +54,16 @@ def is_indexed_refinement {T : Type} (R : irelation T) (R' : relation T) : Prop 
 --   is_indexed_refinement R R'
 
 /-- A relation that is one later than R -/
-def ilater {T : Type} (R : irelation T) (n : ℕ) (x y : T) : Prop :=
-  ∀ m, m < n -> R m x y
+def ilater {T : Type} (R : irelation T) : irelation T :=
+  fun n x y => ∀ m, m < n -> R m x y
 
 /-- [unbundled] A function is nonexpansive wrt. two indexed equivalences -/
 def is_nonexpansive {M N : Type} (RM : irelation M) (RN : irelation N) (f : M -> N) : Prop :=
-  ∀ (n : Nat), is_proper_1 (RM n) (RN n) f
+  ∀ (n : Nat), proper1 (RM n) (RN n) f
 
 /-- [unbundled] A function is contractive wrt. two indexed equivalences -/
 def is_contractive {M N : Type} (RM : irelation M) (RN : irelation N) (f : M -> N) : Prop :=
-  ∀ (n : Nat), is_proper_1 ((ilater RM) n) (RN n) f
+  ∀ (n : Nat), proper1 ((ilater RM) n) (RN n) f
 
 def is_indexed_mono_le {R : irelation T} (H : is_indexed_mono R) :
     R n x y -> (m ≤ n) -> R m x y := by
@@ -827,5 +824,4 @@ instance : OFE SProp where
     · intro H
       subst H
       simp
--/
 -/
