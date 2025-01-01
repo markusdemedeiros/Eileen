@@ -54,7 +54,7 @@ def is_indexed_refinement {T : Type} (R : irelation T) (R' : relation T) : Prop 
 --   is_indexed_refinement R R'
 
 /-- A relation that is one later than R -/
-def ilater {T : Type} (R : irelation T) : irelation T :=
+def later {T : Type} (R : irelation T) : irelation T :=
   fun n x y => ∀ m, m < n -> R m x y
 
 /-- [unbundled] A function is nonexpansive wrt. two indexed equivalences -/
@@ -63,7 +63,7 @@ def is_nonexpansive {M N : Type} (RM : irelation M) (RN : irelation N) (f : M ->
 
 /-- [unbundled] A function is contractive wrt. two indexed equivalences -/
 def is_contractive {M N : Type} (RM : irelation M) (RN : irelation N) (f : M -> N) : Prop :=
-  ∀ (n : Nat), proper1 ((ilater RM) n) (RN n) f
+  ∀ (n : Nat), proper1 (later RM n) (RN n) f
 
 def is_indexed_mono_le {R : irelation T} (H : is_indexed_mono R) :
     R n x y -> (m ≤ n) -> R m x y := by
@@ -81,7 +81,7 @@ def is_indexed_mono_le {R : irelation T} (H : is_indexed_mono R) :
 -/
 
 lemma iLater_is_indexed_equiv {T : Type} (R : irelation T) (H : is_indexed_equiv R) :
-    is_indexed_equiv (ilater R) := by
+    is_indexed_equiv (later R) := by
   intro n
   apply Equivalence.mk
   · intro _ m _
@@ -98,7 +98,7 @@ lemma iLater_is_indexed_equiv {T : Type} (R : irelation T) (H : is_indexed_equiv
     · apply HL2 _ Hm
 
 lemma iLater_is_indexed_mono {T : Type} (R : irelation T) (H : is_indexed_mono R) :
-    is_indexed_mono (ilater R) := by
+    is_indexed_mono (later R) := by
   intro _ _ _ _ _ HL
   intro _ Hm'
   apply H Hm'
@@ -106,24 +106,24 @@ lemma iLater_is_indexed_mono {T : Type} (R : irelation T) (H : is_indexed_mono R
   trivial
 
 lemma rel_later_iLater {T : Type} (R : irelation T) (H : is_indexed_mono R) (x y : T) (n : ℕ) :
-    R n x y -> (ilater R) n x y := by
+    R n x y -> (later R) n x y := by
   intro _ _ Hm
   apply H Hm
   trivial
 
 lemma iLater_lt_rel {T : Type} (R : irelation T) (x y : T) (m n : ℕ) :
-    m < n -> (ilater R) n x y -> R m x y := by
+    m < n -> (later R) n x y -> R m x y := by
   intro _ H2
   apply H2
   trivial
 
 lemma iLater_0 {T : Type} (R : irelation T) (x y : T) :
-    (ilater R) 0 x y := by
+    (later R) 0 x y := by
   intro _
   simp only [Nat.not_lt_zero, IsEmpty.forall_iff]
 
 lemma iLater_S {T : Type} (R : irelation T) (H : is_indexed_mono R) (x y : T) (n : ℕ):
-    R n x y <-> (ilater R) (Nat.succ n) x y := by
+    R n x y <-> (later R) (Nat.succ n) x y := by
   apply Iff.intro
   · intro H' m Hm
     -- FIXME: Where are all those extra goals coming from?
@@ -135,7 +135,7 @@ lemma iLater_S {T : Type} (R : irelation T) (H : is_indexed_mono R) (x y : T) (n
 
 lemma iLater_is_indexed_refinement {T : Type} (R : irelation T) (R' : relation T)
   (Hi : is_indexed_refinement R R') (Hm : is_indexed_mono R) :
-    is_indexed_refinement (ilater R) R' := by
+    is_indexed_refinement (later R) R' := by
   intro x y
   apply Iff.intro
   · intro H
@@ -183,7 +183,10 @@ class IRel.{u} (T : Type u) where
 
 attribute [simp] IRel.irel
 
+-- FIXME: Brackets
 notation:30 a1 " ≈[ " n " ] "  a2 => IRel.irel n a1 a2
+notation:30 a1 " ≈L[ " n " ]"  a2 => (later IRel.irel n) a1 a2 -- This notation should just be used internally
+
 
 /-- A function between IRels is nonexpansive -/
 def nonexpansive [M : IRel T1] [N : IRel T2] (f : T1 -> T2): Prop :=
@@ -229,23 +232,23 @@ lemma OFE.dist_le [OFE T] {x y : T} {m n : ℕ} : (x ≈[n] y) -> (m ≤ n) -> (
 /- Lifted iLater properties -/
 -- FIXME: Cleanup
 
-lemma OFE.rel_later_iLater [OFE T] : (x ≈[n] y) -> (ilater (@IRel.irel T _)) n x y := by
+lemma OFE.rel_later_iLater [OFE T] (x y : T) : (x ≈[n] y) -> (x ≈L[n] y) := by
   intro H
   apply _root_.rel_later_iLater
   · apply OFE.mono
   · apply H
 
 lemma OFE.iLater_lt_rel [OFE T] (x y : T) (m n : ℕ) :
-    m < n -> (ilater (@IRel.irel T _)) n x y -> x ≈[m] y := by
+    m < n -> (x ≈L[n] y) -> x ≈[m] y := by
   intro H1 H2
   apply _root_.iLater_lt_rel
   · apply H1
   · apply H2
 
-lemma OFE.iLater_0 [OFE T] (x y : T) : (ilater IRel.irel) 0 x y := by
+lemma OFE.iLater_0 [OFE T] (x y : T) : x ≈L[0] y := by
   apply _root_.iLater_0
 
-lemma OFE.iLater_S [OFE T] {x y : T} {n : ℕ} : (x ≈[n] y) <-> (ilater (@IRel.irel T _) (Nat.succ n) x y) := by
+lemma OFE.iLater_S [OFE T] {x y : T} {n : ℕ} : (x ≈[n] y) <-> (x ≈L[Nat.succ n] y) := by
   apply _root_.iLater_S
   apply OFE.mono
 
@@ -518,12 +521,12 @@ lemma contractiveS {α β : Type} (f : α -> β) [OFE α] [OFE β] (H : contract
   trivial
 
 lemma contractive_iLater {α β : Type} (f : α -> β) [OFE α] [OFE β] (H : contractive f) x y n :
-    (ilater (@IRel.irel α _) n x y) -> f x ≈[ n ] f y := by
+    (x ≈L[n] y) -> f x ≈[ n ] f y := by
   intro _
   apply H
   trivial
 
-lemma const_contractive {α β: Type} [OFE α] [OFE β] (x : β) : @contractive α β _ _ (fun _ => x) := by
+lemma const_contractive {α β: Type} [OFE α] [OFE β] (x : β) : contractive (fun (_ : α) => x) := by
   intro _ _ _ _
   apply OFE.irefl
 
