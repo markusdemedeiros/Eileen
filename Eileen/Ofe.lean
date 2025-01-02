@@ -63,6 +63,10 @@ def later {T : Type} (R : irelation T) : irelation T :=
 def is_nonexpansive {M N : Type} (RM : irelation M) (RN : irelation N) (f : M -> N) : Prop :=
   ∀ (n : Nat), proper1 (RM n) (RN n) f
 
+@[simp]
+def is_nonexpansive2 {M N T : Type} (RM : irelation M) (RN : irelation N) (RT : irelation T) (f : M -> N -> T) : Prop :=
+  ∀ (n : Nat), proper2 (RM n) (RN n) (RT n) f
+
 /-- [unbundled] A function is contractive wrt. two indexed equivalences -/
 def is_contractive {M N : Type} (RM : irelation M) (RN : irelation N) (f : M -> N) : Prop :=
   ∀ (n : Nat), proper1 (later RM n) (RN n) f
@@ -75,6 +79,22 @@ def is_indexed_mono_le {R : irelation T} (H : is_indexed_mono R) :
   · rename_i h
     apply H h
     trivial
+
+/--
+A nonexpansive map is proper wrt. equality when the index relations refine the equality
+-/
+lemma is_nonexpansive_refinement_proper (RM : irelation M) (RN : irelation N) (EM : relation M) (EN : relation N)
+    (f : M -> N) (HIM : is_indexed_refinement RM EM) (HIN : is_indexed_refinement RN EN)
+    (HN : is_nonexpansive RM RN f) :
+    proper1 EM EN f := by
+  simp
+  intro x y H
+  apply HIN.mp
+  apply HIM.mpr at H
+  intro _
+  apply HN
+  apply H
+
 
 
 
@@ -194,6 +214,9 @@ notation:30 a1 " ≈L[ " n " ]"  a2 => (later IRel.irel n) a1 a2 -- This notatio
 def nonexpansive [M : IRel T1] [N : IRel T2] (f : T1 -> T2): Prop :=
   is_nonexpansive M.irel N.irel f
 
+def nonexpansive2 [M : IRel T1] [N : IRel T2] [S : IRel T3] (f : T1 -> T2 -> T3): Prop :=
+  is_nonexpansive2 M.irel N.irel S.irel f
+
 /-- A function between IRels is contractive  -/
 def contractive [M : IRel T1] [N : IRel T2] (f : T1 -> T2): Prop :=
   is_contractive M.irel N.irel f
@@ -209,6 +232,8 @@ lemma cmp_nonexpansive [IRel T] [IRel U] [IRel V] (f : T -> U) (g : U -> V)
   apply H2
   apply H1
   trivial
+
+
 
 
 
@@ -244,6 +269,11 @@ lemma OFE.dist_le [OFE T] {x y : T} {m n : ℕ} : (x ≈[n] y) -> (m ≤ n) -> (
   apply is_indexed_mono_le
   apply OFE.mono
 
+lemma OFE.equiv_proper [OFE T1] [OFE T2] {f : T1 -> T2} (H : nonexpansive f) :
+    proper1 Rel.rel Rel.rel f :=
+  @is_nonexpansive_refinement_proper T1 T2
+    IRel.irel IRel.irel Rel.rel Rel.rel f
+    OFE.limit OFE.limit H
 
 /- Lifted iLater properties -/
 -- FIXME: Cleanup
@@ -349,17 +379,31 @@ instance (M N : Type) [OFE M] [OFE N] : NonExpansiveClass (NonExpansive M N) M N
 instance [OFE M] [OFE N] [NonExpansiveClass F M N] : CoeTC F (NonExpansive M N) where
   coe F := NonExpansive.mk F (NonExpansiveClass.unif_hom F)
 
-def NonExpansive.id [OFE M] : NonExpansive M M where
+
+def cid [OFE M] : M -n> M where
   toFun := @_root_.id _
   unif_hom := id_nonexpansive
 
-def NonExpansive.comp [OFE α] [OFE β] [OFE γ] (g : NonExpansive β γ) (f : NonExpansive α β) : NonExpansive α γ where
+def cconst [OFE α] [OFE β] (x : β) : α -n> β where
+  toFun _ := x
+  unif_hom := by
+    simp [nonexpansive]
+    intros
+    apply OFE.irefl
+
+def ccompose [OFE α] [OFE β] [OFE γ] (g : NonExpansive β γ) (f : NonExpansive α β) : NonExpansive α γ where
   toFun := g ∘ f
   unif_hom := by
     simp only [DFunLike.coe]
     apply cmp_nonexpansive
     · apply f.unif_hom
     · apply g.unif_hom
+
+
+-- It's hom functors or some crap like that
+def NonExpansive.map [OFE A] [OFE B] [OFE A'] [OFE B']
+    (f : A' -n> A) (g : B -n> B') (x : A -n> B) : (A' -n> B') :=
+  ccompose g (ccompose x f)
 
 
 /-- [bundled] [3.1] Objects in the category of OFE's -/
@@ -380,8 +424,8 @@ def OFE.of (T : Type) [OFE T] : OFECat :=
 -- [4.1]
 instance : CategoryTheory.BundledHom @NonExpansive where
   toFun _ _ F := F
-  id _ := NonExpansive.id
-  comp := @NonExpansive.comp
+  id _ := cid
+  comp := @ccompose
   comp_toFun _ _ _ f g := by
     simp only [DFunLike.coe]
     rfl
@@ -532,6 +576,32 @@ instance [OFE A] [OFE B] : OFE (A -n> B) where
       apply OFE.limit.mpr
       apply H
 
+lemma nonexpansive_ccompose [OFE α] [OFE β] [OFE γ] :
+    nonexpansive2 (@ccompose α β γ _ _ _) := by
+  simp [nonexpansive2]
+  intro _ _ _ _ _ H1 H2 _
+  simp [ccompose, DFunLike.coe]
+  -- FIXME: Setoid
+  apply OFE.itrans
+  · apply NonExpansive.unif_hom
+    apply H2
+  apply OFE.isymm
+  apply OFE.itrans
+  · apply OFE.isymm
+    apply H1
+  apply OFE.irefl
+
+
+lemma eq_proper_ccompose [OFE α] [OFE β] [OFE γ] :
+    proper2 Rel.rel Rel.rel Rel.rel (@ccompose α β γ _ _ _) := by
+  simp [ccompose, DFunLike.coe]
+  intros _ _ _ _ H1 H2 _
+  -- FIXME: Setoid
+  apply OFE.trans
+  · apply H1
+  apply OFE.equiv_proper
+  · apply NonExpansive.unif_hom
+  apply H2
 
 
 
@@ -658,10 +728,13 @@ instance [OFE α] [COFE β] : COFE (α -n> β) where
 
 
 
+
+
+
+
 /-
 ## Contractive functions
 -/
-
 
 lemma contractive0 {α β: Type} (f : α -> β) [OFEα : OFE α] [OFE β] [Inhabited α] (H : contractive f) x y :
     f x ≈[ 0 ] f y := by
@@ -730,202 +803,7 @@ lemma const_contractive {α β: Type} [OFE α] [OFE β] (x : β) : contractive (
 
 
 /-
--- Typeclass which mimics Order hierarchy
-
 -- Type which specifies an OFE, and higher instance priority for specified OFE's (lower for trivial OFE's)?
-
--- Category: Like in Order/Cateogry/Lat.lean
-
--- Use Type* instead of type
-
-
-
-
-
-
-
-
--- Program Definition fixpoint_chain {A : ofe} `{Inhabited A} (f : A → A)
---   `{!Contractive f} : chain A := {| chain_car i := Nat.iter (S i) f inhabitant |}.
-
-
-
-
-/-
-
-/-- An IndexedEquivalence is an IndexedRelation, which is an equivalence at each index -/
-class IndexedEquivalence (R : IndexedRelation T) where
-  equiv : ∀ n, Equivalence (R n)
-
-instance (R : IndexedRelation T) (n : Nat) [IndexedEquivalence R] : Equivalence (R n) where
-  refl := (IndexedEquivalence.equiv n).refl
-  trans := (IndexedEquivalence.equiv n).trans
-  symm := (IndexedEquivalence.equiv n).symm
-
-/-- Semi-bundled representation of an OFE -/
-class OFE {T : Type} (R : IndexedRelation T) extends IndexedEquivalence R where
-  mono  : ∀ {m n x y}, m ≤ n -> R m x y -> R n x y
-  limit : ∀ {x y}, (∀ n, R n x y) <-> x = y
-
-
-
-/-
-## The category of equivalence relations
--/
-
-
--- class EquivHomClass (F : Type) {T S : outParam Type} (R : outParam (Relation T)) (R' : outParam (Relation T)) where
-
-
-/-- A function is a homomorphism of equivalence relations -/
-@[simp]
-def is_EquivHom {T S} (R : Relation T) (R' : Relation S) (f : T -> S) : Prop :=
-  ∀ t t' : T, R t t' -> R' (f t) (f t')
-
-class EquivHom {T S} (R : Relation T) (R' : Relation S) (f : T -> S) where
-  hom : is_EquivHom R R' f
-
-class NonExpansive (R : IndexedRelation T) (R' : IndexedRelation S) (f : T -> S) where
-  nonexpansive : ∀ n, EquivHom (R n) (R' n) f
-
-@[simp]
-def is_contractive (R : IndexedRelation T) (R' : IndexedRelation S) (f : T -> S) : Prop :=
-  ∀ n, ∀ t t', (∀ m, m < n -> R m t t') -> R' n (f t) (f t')
-
-class Contractive (R : IndexedRelation T) (R' : IndexedRelation S) (f : T -> S) extends NonExpansive R R' f where
-  contractive : is_contractive R R' f
-
-
--- How does mathlib deal w/ exponentials
-
--- def nonexpansiveO (R : IndexedRelation T) (R' : IndexedRelation S) (f : T -> S)
-
-
-
-
-
-
-
-/-
-
--- Bundling: If we wanted to work in the cateogry itself
-
-
-abbrev EquivHom.{u} {T S : Type u} (R : Relation T) (R' : Relation S) : Type u :=
-  { f : T -> S // is_EquivHom R R' f }
-
--- Already implemented
--- instance {T S : Type} (R : Relation T) (R' : Relation S) : CoeOut (EquivHom R R') (T -> S) where
---   coe h := h.1
-
-def is_EquivHom_id_refl : is_EquivHom R R id := by
-  simp
-
-def is_EquivHom_comp : is_EquivHom R R' f -> is_EquivHom R' R'' g -> is_EquivHom R R'' (g ∘ f) := by
-  simp_all
-
-def EquivHom_id : EquivHom R R :=
-  ⟨ _, is_EquivHom_id_refl ⟩
-
-def EquivHom_comp (h0 : EquivHom R R') (h1 : EquivHom R' R'') : EquivHom R R'' :=
-  ⟨ _,  is_EquivHom_comp h0.2 h1.2 ⟩
-
--/
--/
--/
-
-/-
-
--- An object in the category of OFE's
--- FIXME: Use the actual ConcreteCategory machinery
-structure OFECat : Type 2 where
-  α : Type
-  -- I could still unbundle R here
-  ofe : OFE α := by infer_instance
-
-structure OFEHom : Type 2 where
-  α : Type
-  β : Type
-  F : Type
-  f : F
-  hom : NonExpansive α β F := by infer_instance
-
--/
-
-/-
-
-/-- A term which behaves like a map which is nonexpansive -/
-@[ext]
-structure nonexpansiveO (F M N : Type) [IRel M] [IRel N] [FunLike F M N] : Type where
-  f : F
-  is_nonexpansive : is_nonexpansive f
-
-instance (F M N : Type) [IRel M] [IRel N] [FunLike F M N] : FunLike (nonexpansiveO F M N) M N where
-  coe e := e.f
-  coe_injective' _ _ := by
-    simp [DFunLike.coe]
-    exact nonexpansiveO.ext
-
--- notation:80  a:81 " -n> " b:79 => @nonexpansiveO a b (a -> b)
-
--- All values in type (nonexpansiveO F M N) behave like nonexpansive maps from M to N
-instance (M N : outParam Type) (F : Type) [IRel M] [IRel N] [FunLike F M N]  :
-    @NonExpansive (nonexpansiveO F M N) M N _ _ where
-  unif_hom f := by
-    rcases f
-    simp [DFunLike.coe]
-    trivial
-
--- You give me: a value in a type you've proven to consist of nonexpansive maps
--- I give you: a value of type nonexpansiveO
-def nonexpansiveO.of (F M N : Type) [IRel M] [IRel N] [f : NonExpansive F M N] (f : F) : nonexpansiveO F M N where
-  f := f
-  is_nonexpansive := by apply @NonExpansive.unif_hom
-
-instance [IRel M] [IRel N] [FunLike F M N] : IRel (nonexpansiveO F M N) where
-  irel n f g := ∀ x : M, f x ≈[n] g x
-
--- This proof doesn't use the OFE property??? Works for a more general structure?
-instance [OFE M] [OFE N] [FunLike F M N] : OFE (nonexpansiveO F M N) where
-  equiv := by
-    simp
-    intro n
-    rcases (@OFE.equiv N _ n) with ⟨ ENR, ENS, ENT ⟩
-    simp_all [IRel.irel]
-    constructor
-    · intro _ _
-      apply ENR
-    · intro _ _ H1 _
-      apply ENS
-      apply H1
-    · intro _ _ _ H1 H2 _
-      apply ENT
-      · apply H1
-      · apply H2
-  mono  := by
-    simp [IRel.irel]
-    intro n m f g Hmn H x
-    apply (@OFE.mono N _ n m (f x) (g x) Hmn)
-    apply H
-  limit := by
-    have X1 := (@OFE.limit N _ )
-    have X2 := (@OFE.limit M _ )
-    simp_all [IRel.irel]
-    intro f g
-    apply Iff.intro
-    · intro H
-      apply nonexpansiveO.ext
-      apply DFunLike.ext
-      intro m
-      apply (@X1 (f.f m) (g.f m)).mp
-      intro n
-      apply H
-    · intro H n x
-      subst H
-      rcases (@OFE.equiv N _ n) with ⟨ ENR, _, _⟩
-      apply ENR
-
-
 
 
 /-- The type of step-indexed propositions -/
