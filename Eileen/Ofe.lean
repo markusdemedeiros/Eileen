@@ -11,6 +11,7 @@ import Mathlib.Order.Basic
 import Eileen.Proper
 
 
+
 -- NOTE / Skipped
 --  - Apparently inferring the right OFE is hard for CMRA's and unital CMRA's (ln. 100)
 --  - Bundled type
@@ -74,8 +75,19 @@ def is_nonexpansive3 {M N T : Type} (RM : irelation M) (RN : irelation N) (RT : 
 
 
 /-- [unbundled] A function is contractive wrt. two indexed equivalences -/
+@[simp]
 def is_contractive {M N : Type} (RM : irelation M) (RN : irelation N) (f : M -> N) : Prop :=
   ∀ (n : Nat), proper1 (later RM n) (RN n) f
+
+
+/-- [unbundled] A function is contractive wrt. two indexed equivalences -/
+@[simp]
+def is_contractive2 {M N S : Type} (RM : irelation M) (RN : irelation N) (RS : irelation S) (f : M -> N -> S) : Prop :=
+  ∀ (n : Nat), proper2 (later RM n) (later RN n) (RS n) f
+
+@[simp]
+def is_anticontractive {M N : Type} (RM : irelation M) (RN : irelation N) (f : M -> N) : Prop :=
+  ∀ (n : Nat), proper1 (RM n) (later RN n) f
 
 def is_indexed_mono_le {R : irelation T} (H : is_indexed_mono R) :
     R n x y -> (m ≤ n) -> R m x y := by
@@ -245,6 +257,13 @@ def nonexpansive3 [M : IRel T1] [N : IRel T2] [S : IRel T3] [U : IRel T4] (f : T
 def contractive [M : IRel T1] [N : IRel T2] (f : T1 -> T2): Prop :=
   is_contractive M.irel N.irel f
 
+/-- A function between IRels is contractive  -/
+def contractive2 [M : IRel T1] [N : IRel T2] [S : IRel T3] (f : T1 -> T2 -> T3): Prop :=
+  is_contractive2 M.irel N.irel S.irel f
+
+def anticontractive [M : IRel T1] [N : IRel T2] (f : T1 -> T2): Prop :=
+  is_anticontractive M.irel N.irel f
+
 lemma id_nonexpansive [IRel T] : nonexpansive (@id T) := by
   simp [nonexpansive]
 
@@ -399,6 +418,14 @@ instance (M N : Type) [OFE M] [OFE N] : NonExpansiveClass (NonExpansive M N) M N
     simp [DFunLike.coe]
     intro f
     apply f.unif_hom
+
+-- Can lift a function to M -n> N when nonnexpansive holds
+instance [OFE M] [OFE N] : CanLift (M -> N) (M -n> N) DFunLike.coe nonexpansive where
+  prf := by
+    simp [DFunLike.coe]
+    intros f H
+    exists NonExpansive.mk f H
+
 
 instance [OFE M] [OFE N] [NonExpansiveClass F M N] : CoeTC F (NonExpansive M N) where
   coe F := NonExpansive.mk F (NonExpansiveClass.unif_hom F)
@@ -1022,7 +1049,7 @@ lemma prod_irel_iff [OFE A] [OFE B] (a a' : A) (b b' : B) (n : ℕ) :
 ## Leibniz OFE
 -/
 
-@[simp, reducible, inline]
+@[simp]
 def WithEquality (T : Type) : Type := T
 
 instance : ERel (WithEquality T) where
@@ -1032,7 +1059,10 @@ instance : ERel (WithEquality T) where
 abbrev LeibnizO T := Δ (WithEquality T)
 
 instance : LeibnizRel (LeibnizO T) where
-  leibniz := by simp
+  leibniz := by
+    simp [WithEquality, Rel.rel]
+    sorry
+
 
 -- #synth ERel (LeibnizO Bool)
 -- #synth OFE (LeibnizO Bool)
@@ -1139,6 +1169,113 @@ instance [COFE α] : COFE (▸α) where
     · apply OFE.isymm
       apply COFE.complete c.later
     apply OFE.irefl
+
+
+lemma Next_contractive [OFE T] : contractive (@laterO.Next T) := by
+  simp [contractive, is_contractive]
+
+lemma later_car_anti_contractive [OFE T] : anticontractive (@laterO.t T) := by
+  simp [anticontractive, is_anticontractive]
+
+lemma contractive_iff [OFE A] [OFE B] (f : A -> B) :
+    contractive f <-> ∃ g : ▸A -> B, nonexpansive g ∧ ∀ x, (f x ≈ g (laterO.Next x)) := by
+  apply Iff.intro
+  · intros H
+    exists (f ∘ laterO.t)
+    simp [nonexpansive]
+    apply And.intro
+    · intros
+      apply H
+      trivial
+    · intros
+      apply OFE.refl
+  · intros H
+    rcases H with ⟨ g, ⟨ HNE, H ⟩ ⟩
+    simp [contractive, is_contractive]
+    intros n x y HL
+    -- FIXME: Setoid
+    apply OFE.itrans
+    · apply (OFE.limit).mpr
+      apply H
+    apply OFE.isymm
+    apply OFE.itrans
+    · apply (OFE.limit).mpr
+      apply H
+    apply OFE.isymm
+    apply HNE
+    apply HL
+
+-- FIXME: How many of these lemmas need to be the stronger (pre_map) version?
+-- FIXME: I feel like I should be able to remove laterO_pre_map:
+--        Need to infer that the result is nonexpansive when the argument is nonexpansive
+--        So that the input can cast from A -n> B and the output can cast to ▸A -n> ▸B
+
+-- See: Topology.ContinusFunction.Basic
+
+-- C(A, B) is my A -n> B
+
+
+/--
+The implementation of laterO.map, which isn't nonexpansive, but doesn't rewure a nonexpansive input
+
+Not sure how ofen we map by a nonexpansive map, but it might be useful?
+-/
+@[simp]
+def laterO.pre_map (f : A -> B) (x : ▸A) : ▸B := Next <| f x.t
+
+lemma later_pre_ne [OFE A] [OFE B] (f : A -> B) (HN : ∀ n, proper1 (later IRel.irel n) (later IRel.irel n) f) :
+    nonexpansive (laterO.pre_map f) := by
+  simp [nonexpansive]
+  intros
+  apply HN
+  trivial
+
+lemma later_pre_ne' [OFE A] [OFE B] (f : A -n> B) : nonexpansive (laterO.pre_map f) := by
+  simp [nonexpansive, later]
+  intros _ _ _ H _ _
+  apply NonExpansive.unif_hom
+  apply H
+  trivial
+
+lemma later_equiv_proper [OFE A] [OFE B] (f : A -> B) (HN : proper1 Rel.rel Rel.rel f) :
+    proper1 Rel.rel Rel.rel (laterO.pre_map f) := by
+  simp [nonexpansive]
+  intros
+  apply HN
+  trivial
+
+lemma later_pre_map_next [OFE A] [OFE B] (f : A -> B) (x : A) :
+    laterO.pre_map f (laterO.Next x) = laterO.Next (f x) := by
+  simp only [laterO.pre_map]
+
+lemma later_pre_map_id [OFE A] [OFE B] (f : A -> B) (x : ▸A) :
+    laterO.pre_map id x = x := by
+  simp only [laterO.pre_map, id_eq]
+
+lemma later_pre_map_cmp [OFE A] [OFE B] [OFE C] (f : A -> B) (g : B -> C) (x : ▸ A):
+    laterO.pre_map (g ∘ f) x = laterO.pre_map g (laterO.pre_map f x) := by
+  simp only [laterO.pre_map, Function.comp_apply]
+
+lemma later_map_ext [OFE A] [OFE B] (f : A -> B) :
+    (∀ x, f x ≈ g x) -> laterO.pre_map f x ≈ laterO.pre_map g x := by
+  intro H
+  simp only [Rel.rel, laterO.pre_map]
+  apply H
+
+/-- Map through a later by a nonexpansive map -/
+def laterO.map [OFE A] [OFE B] (f : A -n> B) : ▸A -n> ▸B where
+  toFun := laterO.pre_map f
+  unif_hom := by apply later_pre_ne'
+
+ lemma later_map_contractive [OFE A] [OFE B] :
+     @contractive (A -n> B) (▸A -n> ▸B) _ _ (@laterO.map A B _ _) := by
+  simp [contractive, later, laterO.map, DFunLike.coe]
+  intros _ f f' H _ _ _
+  apply OFE.itrans
+  · apply H
+    trivial
+  apply OFE.irefl
+
 
 
 
