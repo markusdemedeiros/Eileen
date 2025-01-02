@@ -649,7 +649,9 @@ lemma chain_is_cauchy' [OFE α] (c : Chain α) : ∀ {m n : Nat}, n ≤ m -> (c 
   trivial
 
 
-def Chain.map {α β : Type} [OFE α] [OFE β] (f : α -> β) (c : Chain α) (Hf : nonexpansive f) : Chain β where
+
+
+def Chain.cmap {α β : Type} [OFE α] [OFE β] {f : α -> β} (c : Chain α) (Hf : nonexpansive f) : Chain β where
   val := f ∘ c
   property := by
     rcases c with ⟨ c', Hc' ⟩
@@ -691,7 +693,7 @@ class COFE (α : Type) extends OFE α where
   complete : ∀ {n : Nat}, ∀ (c : Chain α), (lim c) ≈[n] (c n)
 
 lemma COFE.map {α β : Type} [COFEα: COFE α] [COFEβ : COFE β] (f : α -> β) (c : Chain α) (Hf : nonexpansive f) :
-    lim (Chain.map f c Hf) ≈ f (lim c) := by
+    lim (Chain.cmap c Hf) ≈ f (lim c) := by
   apply OFE.limit.mp
   intro n
 
@@ -704,7 +706,6 @@ lemma COFE.map {α β : Type} [COFEα: COFE α] [COFEβ : COFE β] (f : α -> β
   apply @(@COFEβ.equiv n).trans _ _ _ ?G
   case G =>
     apply @COFEβ.complete
-  unfold Chain.map
   simp
   apply @(@COFEβ.equiv n).refl
 
@@ -855,6 +856,134 @@ instance : COFE emptyO where
   complete c := by simp
 
 
+
+/-
+## Product OFE
+-/
+def prodO (A B : Type) : Type := A × B
+
+
+-- instance [OFE A] [OFE B] : Coe (A × B) (prodO A B) where
+--   coe := sorry
+
+instance [OFE A] [OFE B] : OFE (prodO A B) where
+  irel n x y := (x.1 ≈[n] y.1) ∧ (x.2 ≈[n] y.2)
+  rel x y := (x.1 ≈ y.1) ∧ (x.2 ≈ y.2)
+  equivalence := by
+    apply Equivalence.mk
+    · intro
+      simp only [Rel.rel]
+      apply And.intro
+      · apply OFE.refl
+      · apply OFE.refl
+    · simp
+      intros
+      apply And.intro
+      · apply OFE.symm
+        trivial
+      · apply OFE.symm
+        trivial
+    · simp
+      intros
+      apply And.intro
+      · apply OFE.trans
+        · trivial
+        · trivial
+      · apply OFE.trans
+        · trivial
+        · trivial
+  equiv := by
+    intro n
+    apply Equivalence.mk
+    · intro
+      simp only [Rel.rel]
+      apply And.intro
+      · apply OFE.irefl
+      · apply OFE.irefl
+    · simp
+      intros
+      apply And.intro
+      · apply OFE.isymm
+        trivial
+      · apply OFE.isymm
+        trivial
+    · simp
+      intros
+      apply And.intro
+      · apply OFE.itrans
+        · trivial
+        · trivial
+      · apply OFE.itrans
+        · trivial
+        · trivial
+  mono := by
+    simp
+    intros
+    apply And.intro
+    · apply OFE.mono
+      · trivial
+      · trivial
+    · apply OFE.mono
+      · trivial
+      · trivial
+  limit := by
+    simp
+    intros
+    apply Iff.intro
+    · intros
+      rename_i H
+      apply And.intro
+      · apply OFE.limit.mp
+        intro n
+        apply (H n).1
+      · apply OFE.limit.mp
+        intro n
+        apply (H n).2
+    · simp
+      intros
+      apply And.intro
+      · apply OFE.limit.mpr
+        trivial
+      · apply OFE.limit.mpr
+        trivial
+
+lemma fst_nonexpansive [OFE A] [OFE B] : @nonexpansive (prodO A B) A _ _ Prod.fst := by
+  simp [nonexpansive]
+  intros
+  trivial
+
+lemma snd_nonexpansive [OFE A] [OFE B] : @nonexpansive (prodO A B) B _ _ Prod.snd := by
+  simp [nonexpansive]
+
+instance [COFE A] [COFE B] : COFE (prodO A B) where
+  lim c :=
+    (COFE.lim (Chain.cmap c fst_nonexpansive), COFE.lim (Chain.cmap c snd_nonexpansive))
+  complete := by
+    simp
+    intros
+    apply And.intro
+    · apply COFE.complete
+    · apply COFE.complete
+
+instance [DiscreteOFE A] [DiscreteOFE B] : DiscreteOFE (prodO A B) where
+  discrete := by
+    simp
+    intros
+    apply And.intro
+    · apply DiscreteOFE.discrete
+      trivial
+    · apply DiscreteOFE.discrete
+      trivial
+
+-- #synth OFE (prodO emptyO emptyO)
+
+-- FIXME: Fix this goofy type
+-- Even if I delete this lemma it's silly to have to state it like this
+lemma prod_irel_iff [OFE A] [OFE B] (a a' : A) (b b' : B) (n : ℕ) :
+    let L : prodO A B := (a, b)
+    let R : prodO A B := (a', b')
+    (L ≈[n] R) <-> (a ≈[n] a') ∧  (b ≈[n] b') := by
+  simp
 
 
 
