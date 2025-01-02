@@ -698,6 +698,7 @@ def Chain.const {α : Type} [OFE α] (x : α) : Chain α where
     simp
     apply OFE.irefl
 
+
 @[simp]
 def nonexpansive_app_chain [OFE α] [OFE β] (c : Chain (α -n> β)) (x : α) : Chain β where
   val n := c n x
@@ -1113,13 +1114,31 @@ instance [I : OFE T] : OFE ▸T where
       · trivial
 
 
+def Chain.later [OFE α] (c : Chain ▸α) : Chain α where
+  val n := laterO.t <| c <| Nat.succ n
+  property := by
+    simp [DFunLike.coe]
+    intros
+    apply c.property
+    · simp
+      trivial
+    · apply Nat.lt_add_one
 
-
-
-
-
-
-
+instance [COFE α] : COFE (▸α) where
+  lim := laterO.Next ∘ COFE.lim ∘ Chain.later
+  complete := by
+    intros n c
+    cases n
+    · apply iLater_0
+    rename_i n
+    -- FIXME: Setoid
+    simp only [IRel.irel, Function.comp_apply]
+    apply (@iLater_S α IRel.irel OFE.mono _ _ _).mp
+    apply OFE.isymm
+    apply OFE.itrans
+    · apply OFE.isymm
+      apply COFE.complete c.later
+    apply OFE.irefl
 
 
 
