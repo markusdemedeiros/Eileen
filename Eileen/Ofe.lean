@@ -867,8 +867,41 @@ instance [OFE α] [COFE β] : COFE (α -n> β) where
     simp
     apply OFE.irefl
 
+/-
+## The category of COFE's
+-/
+
+/-- [bundled] [3.1] Objects in the category of COFE's -/
+def COFECat := CategoryTheory.Bundled COFE
+
+-- [3.2]
+instance : CoeSort COFECat Type where
+  coe := CategoryTheory.Bundled.α
+
+-- [3.3]
+instance (X : COFECat) : COFE X := X.str
+
+/-- [3.4] Bundle a COFE instance into an COFECat -/
+def COFE.of (T : Type) [COFE T] : COFECat :=
+  CategoryTheory.Bundled.of T
+
+abbrev NonExpansive' (M N : Type) [COFE M] [COFE N] : Type := @NonExpansive M N _ _
 
 
+-- [4.1] Homs in the category of COFE's
+instance : CategoryTheory.BundledHom @NonExpansive' where
+  toFun _ _ F := F
+  id _ := cid
+  comp _ _ _ g f := ccompose g f
+  comp_toFun _ _ _ f g := by
+    simp only [DFunLike.coe]
+    rfl
+
+instance : CategoryTheory.LargeCategory @COFECat :=
+  CategoryTheory.BundledHom.category @NonExpansive'
+
+instance : CategoryTheory.ConcreteCategory COFECat :=
+  CategoryTheory.BundledHom.concreteCategory NonExpansive'
 
 
 
@@ -899,6 +932,12 @@ lemma contractive_iLater {α β : Type} (f : α -> β) [OFE α] [OFE β] (H : co
 lemma const_contractive {α β: Type} [OFE α] [OFE β] (x : β) : contractive (fun (_ : α) => x) := by
   intro _ _ _ _
   apply OFE.irefl
+
+
+
+
+
+
 
 
 
@@ -1106,6 +1145,37 @@ lemma prod_irel_iff [OFE A] [OFE B] (a a' : A) (b b' : B) (n : ℕ) :
     let R : prodO A B := (a', b')
     (L ≈[n] R) <-> (a ≈[n] a') ∧  (b ≈[n] b') := by
   simp
+
+
+
+
+/-
+## oFunctors (OFE -> COFE functors)
+-/
+
+-- TODO: I wonder if this could be written as an actual (bi)functor between categories?
+
+/-- [bundled] COFE -> OFE functor -/
+structure oFunctor where
+  car : OFECat -> OFECat -> OFECat
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1370,8 +1440,6 @@ lemma later_map_contractive [OFE A] [OFE B] :
  · apply H
    trivial
  apply OFE.irefl
-
-
 
 
 
