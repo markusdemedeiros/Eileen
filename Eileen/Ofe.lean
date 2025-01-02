@@ -386,7 +386,7 @@ lemma OFE.iLater_S [OFE T] {x y : T} {n : ℕ} : (x ≈[n] y) <-> (x ≈L[Nat.su
 
 
 -- NOTE: Not sure if this is the best way to organize this
--- FIXME: Can I define Contractive and NonExpansive in a hierachy somehow?
+-- FIXME: Can I define Contractive and NonExpansive in a hierachy
 
 
 /-- [semi-bundled] [2.1] A nonexpansive function between two indexed relations -/
@@ -403,6 +403,8 @@ notation:30 a1 " -n> "  a2 => NonExpansive a1 a2
 class NonExpansiveClass (F : Type) (M N : outParam Type) [OFE M] [OFE N] extends
      FunLike F M N where
   unif_hom : ∀ f : F, nonexpansive f
+
+
 
 -- [2.3]
 instance (M N : Type) [OFE M] [OFE N] : FunLike (NonExpansive M N) M N where
@@ -426,9 +428,60 @@ instance [OFE M] [OFE N] : CanLift (M -> N) (M -n> N) DFunLike.coe nonexpansive 
     intros f H
     exists NonExpansive.mk f H
 
-
-instance [OFE M] [OFE N] [NonExpansiveClass F M N] : CoeTC F (NonExpansive M N) where
+-- Replace with HasNonExpansive + Coe?
+instance [OFE M] [OFE N] [NonExpansiveClass F M N] : CoeOut F (NonExpansive M N) where
   coe F := NonExpansive.mk F (NonExpansiveClass.unif_hom F)
+
+
+/--
+A given function f has a proof of non-expansivity, and therefore can be lifted into NonExpansive
+
+See: laterO.map
+
+NOTE: This class is only used to register coercions
+-/
+class HasNonExpansive [OFE M] [OFE N] [FunLike F M N] (f : F) where
+  ne : nonexpansive f
+
+-- TODO: Is this not somewhere already??
+instance : FunLike (A → B) A B where
+  coe f := f
+  coe_injective' := by simp [Function.Injective]
+
+-- All elemenets of a NonExpansiveClass have a nonexpansive proof
+instance [OFE M] [OFE N] [NonExpansiveClass F M N] (f : F) : HasNonExpansive f where
+  ne := by apply NonExpansiveClass.unif_hom
+
+
+-- This is implied by above
+-- -- The underlying functions of a bundled NonExpansive have a nonexpansive proof
+-- instance [OFE M] [OFE N] (f : M -n> N) : HasNonExpansive f where
+--   ne := by apply NonExpansive.unif_hom
+
+-- instance [OFE M] [OFE N] [FunLike F M N] (f : F) : CoeTC (HasNonExpansive f) (NonExpansive M N) where
+--   coe _ := NonExpansive.mk f HasNonExpansive.ne
+
+-- instance [OFE M] [OFE N] [FunLike F M N] (f : F) : CoeOut (HasNonExpansive f) (NonExpansive M N) where
+--   coe _ := NonExpansive.mk f HasNonExpansive.ne
+--
+-- section neCoeTest
+-- variable [OFE A] [OFE B]
+-- variable (f : A -> B)
+-- variable [HasNonExpansive f]
+--
+-- #check f
+-- -- #check @CoeTC.coe (HasNonExpansive f) (NonExpansive A B) _ _
+-- #check (@CoeOut.coe (HasNonExpansive f) (A -n> B) _ _)
+--
+-- end neCoeTest
+
+def NonExpansive.lift [OFE M] [OFE N] [FunLike F M N] (f : F) [HasNonExpansive f] : NonExpansive M N where
+  toFun := f
+  unif_hom := HasNonExpansive.ne
+
+
+
+
 
 
 def cid [OFE M] : M -n> M where
@@ -487,6 +540,17 @@ instance : CategoryTheory.LargeCategory @OFECat :=
 
 instance : CategoryTheory.ConcreteCategory OFECat :=
   CategoryTheory.BundledHom.concreteCategory NonExpansive
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1221,60 +1285,100 @@ The implementation of laterO.map, which isn't nonexpansive, but doesn't rewure a
 Not sure how ofen we map by a nonexpansive map, but it might be useful?
 -/
 @[simp]
-def laterO.pre_map (f : A -> B) (x : ▸A) : ▸B := Next <| f x.t
+def laterO.map (f : A -> B) (x : ▸A) : ▸B := Next <| f x.t
 
-lemma later_pre_ne [OFE A] [OFE B] (f : A -> B) (HN : ∀ n, proper1 (later IRel.irel n) (later IRel.irel n) f) :
-    nonexpansive (laterO.pre_map f) := by
+
+-- CanLift doesn't work
+-- section test
+-- variable [OFE A] [OFE B] (f : A -> B)
+-- variable (H : nonexpansive f)
+--
+-- #check laterO.pre_map f
+-- #check (laterO.pre_map f : ▸A -> ▸B)
+--
+-- example : True := by
+--   lift f to (A -n> B) using H
+--   simp
+--
+-- end test
+
+lemma later_map_ne [OFE A] [OFE B] (f : A -> B) (HN : ∀ n, proper1 (later IRel.irel n) (later IRel.irel n) f) :
+    nonexpansive (laterO.map f) := by
   simp [nonexpansive]
   intros
   apply HN
   trivial
 
-lemma later_pre_ne' [OFE A] [OFE B] (f : A -n> B) : nonexpansive (laterO.pre_map f) := by
+lemma later_map_ne' [OFE A] [OFE B] (f : A -n> B) : nonexpansive (laterO.map f) := by
   simp [nonexpansive, later]
   intros _ _ _ H _ _
   apply NonExpansive.unif_hom
   apply H
   trivial
 
+
 lemma later_equiv_proper [OFE A] [OFE B] (f : A -> B) (HN : proper1 Rel.rel Rel.rel f) :
-    proper1 Rel.rel Rel.rel (laterO.pre_map f) := by
+    proper1 Rel.rel Rel.rel (laterO.map f) := by
   simp [nonexpansive]
   intros
   apply HN
   trivial
 
-lemma later_pre_map_next [OFE A] [OFE B] (f : A -> B) (x : A) :
-    laterO.pre_map f (laterO.Next x) = laterO.Next (f x) := by
-  simp only [laterO.pre_map]
+lemma later_map_next [OFE A] [OFE B] (f : A -> B) (x : A) :
+    laterO.map f (laterO.Next x) = laterO.Next (f x) := by
+  simp only [laterO.map]
 
-lemma later_pre_map_id [OFE A] [OFE B] (f : A -> B) (x : ▸A) :
-    laterO.pre_map id x = x := by
-  simp only [laterO.pre_map, id_eq]
+lemma later_map_id [OFE A] [OFE B] (f : A -> B) (x : ▸A) :
+    laterO.map id x = x := by
+  simp only [laterO.map, id_eq]
 
-lemma later_pre_map_cmp [OFE A] [OFE B] [OFE C] (f : A -> B) (g : B -> C) (x : ▸ A):
-    laterO.pre_map (g ∘ f) x = laterO.pre_map g (laterO.pre_map f x) := by
-  simp only [laterO.pre_map, Function.comp_apply]
+lemma later_map_cmp [OFE A] [OFE B] [OFE C] (f : A -> B) (g : B -> C) (x : ▸ A):
+    laterO.map (g ∘ f) x = laterO.map g (laterO.map f x) := by
+  simp only [laterO.map, Function.comp_apply]
 
 lemma later_map_ext [OFE A] [OFE B] (f : A -> B) :
-    (∀ x, f x ≈ g x) -> laterO.pre_map f x ≈ laterO.pre_map g x := by
+    (∀ x, f x ≈ g x) -> laterO.map f x ≈ laterO.map g x := by
   intro H
-  simp only [Rel.rel, laterO.pre_map]
+  simp only [Rel.rel, laterO.map]
   apply H
 
-/-- Map through a later by a nonexpansive map -/
-def laterO.map [OFE A] [OFE B] (f : A -n> B) : ▸A -n> ▸B where
-  toFun := laterO.pre_map f
-  unif_hom := by apply later_pre_ne'
-
- lemma later_map_contractive [OFE A] [OFE B] :
-     @contractive (A -n> B) (▸A -n> ▸B) _ _ (@laterO.map A B _ _) := by
-  simp [contractive, later, laterO.map, DFunLike.coe]
-  intros _ f f' H _ _ _
-  apply OFE.itrans
-  · apply H
+instance [OFE A] [OFE B] [FunLike F A B] (f : F) [HasNonExpansive f] : HasNonExpansive (laterO.map f) where
+  ne := by
+    simp [DFunLike.coe]
+    simp [nonexpansive, later]
+    intros _ _ _ H _ _
+    apply HasNonExpansive.ne
+    apply H
     trivial
-  apply OFE.irefl
+
+section Test1
+variable [OFE A] [OFE B]
+variable (f : A -n> B)
+-- #synth HasNonExpansive (laterO.map f)
+-- #check @NonExpansive.lift (▸A) (▸B) (▸A -> ▸B) _ _ _ (laterO.map f) _
+
+
+-- TODO: Is there some way to automatically insert this lift?
+#check NonExpansive.lift (laterO.map f)
+end Test1
+
+
+
+
+
+-- /- Map through a later by a nonexpansive map -/
+-- def laterO.map [OFE A] [OFE B] (f : A -n> B) : ▸A -n> ▸B where
+--   toFun := laterO.pre_map f
+--   unif_hom := by apply later_pre_ne'
+
+--  lemma later_map_contractive [OFE A] [OFE B] :
+--      @contractive (A -n> B) (▸A -n> ▸B) _ _ (NonExpansive.lift (@laterO.map A B _ _) := by
+--   simp [contractive, later, laterO.map, DFunLike.coe]
+--   intros _ f f' H _ _ _
+--   apply OFE.itrans
+--   · apply H
+--     trivial
+--   apply OFE.irefl
 
 
 
