@@ -5,6 +5,7 @@ Authors: Markus de Medeiros
 import Mathlib.CategoryTheory.Category.Basic
 import Mathlib.Data.FunLike.Basic
 import Mathlib.CategoryTheory.ConcreteCategory.Bundled
+import Mathlib.CategoryTheory.ConcreteCategory.BundledHom
 import Mathlib.CategoryTheory.ConcreteCategory.Basic
 import Mathlib.Order.Basic
 import Eileen.Proper
@@ -261,78 +262,117 @@ lemma OFE.iLater_S [OFE T] {x y : T} {n : ℕ} : (x ≈[n] y) <-> (x ≈L[Nat.su
 ## Bundled OFE's
 -/
 
+
+-- See Order/Lattice.lean
+-- See Order/Hom/Lattice.lean
+-- See Order/Category/Lat.lean
+
+
+
+-- Step 1: TC Hierarchy of classes
+--   See Order/lattice.lean
+--   Semi-bundled, hierarchy defined using extension (see Mathematics in Lean)
+--   For multiple instances: see Mathlib.Order.Synonym
+
+-- Step 2: Semi-bundled TC hierarchy of morphisms
+--   See Order/Hom/Lattice.lean
+--   2.1. Define structure (hierarchy) with toFun
+--   2.2. Define class (hierarchy) which extends FunLike
+--   2.3. Register class instances for each structure
+--   2.4. Register CoeTC from F (of class) to structure
+--   2.5. Register instance of FunLike for the class
+--   2.5. Define comp and id structures
+
+-- Step 3: Bundled structure
+--   See Order/Category/Lat.lean
+--   3.1. Define bundled type with CategoryTheory.Bundled
+--   3.2. Register CoeSort for the bundled type
+--   3.3. Register typeclass instance for the bundled type
+--   3.4. Define coercion from type to bundled type
+
+-- Step 4: Bundled morphisms
+--   See Order/Category/Lat.lean
+--   4.1. Register BundledHom instance for @structure
+--   4.2. Register Category instance
+--   4.3. Register ConcreteCategory instance
+
+
 -- NOTE: Not sure if this is the best way to organize this
 -- FIXME: Can I define Contractive and NonExpansive in a hierachy somehow?
--- see MulHom
--- see SemiRingCat.Hom
 
-structure NonExpansive (M N : Type) [IRel M] [IRel N] where
+
+/-- [semi-bundled] [2.1] A nonexpansive function between two indexed relations -/
+structure NonExpansive (M N : Type) [OFE M] [OFE N] where
   toFun : M -> N
   unif_hom : nonexpansive toFun
-notation:30 t1 " ==ne=> "  t2 => NonExpansive t1 t2
 
 attribute [simp] NonExpansive.toFun
 
-/-- [semi-bundled] A type F behaves like an irel morphism from M to N at each index  -/
-class NonExpansiveClass (F : Type) (M N : outParam Type) [IRel M] [IRel N] extends
+def NonExpansive.id [OFE M] : NonExpansive M M where
+  toFun x := x
+  unif_hom := sorry
+
+
+def NonExpansive.comp [OFE α] [OFE β] [OFE γ] (g : NonExpansive β γ) (f : NonExpansive α β) : NonExpansive α γ where
+  toFun := sorry
+  unif_hom := sorry
+
+
+/-- [semi-bundled] [2.2] A type F behaves like an irel morphism from M to N at each index  -/
+class NonExpansiveClass (F : Type) (M N : outParam Type) [OFE M] [OFE N] extends
      FunLike F M N where
   unif_hom : ∀ f : F, nonexpansive f
 
-instance (M N : Type) [IRel M] [IRel N] : FunLike (NonExpansive M N) M N where
+-- [2.3]
+instance (M N : Type) [OFE M] [OFE N] : FunLike (NonExpansive M N) M N where
   coe := fun F x => F.toFun x
   coe_injective' := by
     intro x y H
     cases x
     congr
 
-instance (M N : Type) [IRel M] [IRel N] : NonExpansiveClass (NonExpansive M N) M N where
+-- [2.3]
+instance (M N : Type) [OFE M] [OFE N] : NonExpansiveClass (NonExpansive M N) M N where
   unif_hom := by
     simp [DFunLike.coe]
     intro f
     apply f.unif_hom
 
+instance [OFE M] [OFE N] [NonExpansiveClass F M N] : CoeTC F (NonExpansive M N) where
+  coe F := NonExpansive.mk F (NonExpansiveClass.unif_hom F)
 
--- def NonExpansiveClass.toNonExpansive [IRel M] [IRel N] [FunLike F M N] [C : NonExpansiveClass F M N] (f : F) :
---     NonExpansive M N where
---   toFun := f
---   unif_hom := by
---     let Z := (C.unif_hom f)
---     sorry
 
--- instance [IRel M] [IRel N] [FunLike F M N] [NonExpansiveClass F M N] (f : F) :
---     CoeTC F (NonExpansive M N)  where
---   coe := sorry
 
-/-- [bundled] OFE -/
-abbrev OFECat := CategoryTheory.Bundled OFE
+/-- [bundled] [3.1] Objects in the category of OFE's -/
+def OFECat := CategoryTheory.Bundled OFE
 
+
+-- [3.2]
 instance : CoeSort OFECat Type where
   coe := CategoryTheory.Bundled.α
 
--- @[reducible, inline]
--- @[inline]
--- abbrev OFECat.of (T : Type) [OFE T] : OFECat := { α := T, str := by infer_instance }
+-- [3.3]
+instance (X : OFECat) : OFE X := X.str
 
--- instance (A : OFECat) : OFE A where
---   rel := sorry
---   irel := sorry
---   equivalence := sorry
---   equiv := sorry
---   mono := sorry
---   limit := sorry
-
--- lemma OFECat.coe_of (T : Type) [OFE T] : OFECat.of T = T :=
---   sorry
---
--- lemma OFECat.of_carrier (T : OFECat) : OFECat.of T = T :=
---   sorry
---
--- structure OFECat.Hom (A : OFECat) (B : OFECat) where
---   hom : NonExpansive A B
-
--- instance OFECat.instCategory : CategoryTheory.Category OFECat where
+/-- [3.4] Bundle an OFE instance into an OFECat -/
+def OFE.of (T : Type) [OFE T] : OFECat :=
+  CategoryTheory.Bundled.of T
 
 
+-- [4.1]
+instance : CategoryTheory.BundledHom @NonExpansive where
+  toFun _ _ F := F
+  id _ := NonExpansive.id
+  comp := @NonExpansive.comp
+  comp_toFun _ _ _ f g := by
+    simp only
+    sorry
+
+instance : CategoryTheory.LargeCategory @OFECat :=
+  CategoryTheory.BundledHom.category @NonExpansive
+
+instance : CategoryTheory.ConcreteCategory OFECat :=
+  CategoryTheory.BundledHom.concreteCategory NonExpansive
 
 
 
