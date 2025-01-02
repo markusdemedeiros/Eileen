@@ -67,6 +67,12 @@ def is_nonexpansive {M N : Type} (RM : irelation M) (RN : irelation N) (f : M ->
 def is_nonexpansive2 {M N T : Type} (RM : irelation M) (RN : irelation N) (RT : irelation T) (f : M -> N -> T) : Prop :=
   ∀ (n : Nat), proper2 (RM n) (RN n) (RT n) f
 
+@[simp]
+def is_nonexpansive3 {M N T : Type} (RM : irelation M) (RN : irelation N) (RT : irelation T) (RS : irelation S)
+  (f : M -> N -> T -> S) : Prop :=
+  ∀ (n : Nat), proper3 (RM n) (RN n) (RT n) (RS n) f
+
+
 /-- [unbundled] A function is contractive wrt. two indexed equivalences -/
 def is_contractive {M N : Type} (RM : irelation M) (RN : irelation N) (f : M -> N) : Prop :=
   ∀ (n : Nat), proper1 (later RM n) (RN n) f
@@ -216,6 +222,9 @@ def nonexpansive [M : IRel T1] [N : IRel T2] (f : T1 -> T2): Prop :=
 
 def nonexpansive2 [M : IRel T1] [N : IRel T2] [S : IRel T3] (f : T1 -> T2 -> T3): Prop :=
   is_nonexpansive2 M.irel N.irel S.irel f
+
+def nonexpansive3 [M : IRel T1] [N : IRel T2] [S : IRel T3] [U : IRel T4] (f : T1 -> T2 -> T3 -> T4): Prop :=
+  is_nonexpansive3 M.irel N.irel S.irel U.irel f
 
 /-- A function between IRels is contractive  -/
 def contractive [M : IRel T1] [N : IRel T2] (f : T1 -> T2): Prop :=
@@ -404,6 +413,7 @@ def ccompose [OFE α] [OFE β] [OFE γ] (g : NonExpansive β γ) (f : NonExpansi
 def NonExpansive.map [OFE A] [OFE B] [OFE A'] [OFE B']
     (f : A' -n> A) (g : B -n> B') (x : A -n> B) : (A' -n> B') :=
   ccompose g (ccompose x f)
+
 
 
 /-- [bundled] [3.1] Objects in the category of OFE's -/
@@ -604,6 +614,16 @@ lemma eq_proper_ccompose [OFE α] [OFE β] [OFE γ] :
   apply H2
 
 
+lemma NonExpansive.map_nonexpansive [OFE A] [OFE B] [OFE A'] [OFE B'] :
+    nonexpansive3 (@NonExpansive.map A B A' B' _ _ _ _) := by
+  simp [nonexpansive3, NonExpansive.map]
+  intro _ _ _ _ _ _ _ H1 H2 H3 x
+  -- FIXME: Setoid
+  apply nonexpansive_ccompose
+  · apply H2
+  apply nonexpansive_ccompose
+  · apply H3
+  · apply H1
 
 
 /-

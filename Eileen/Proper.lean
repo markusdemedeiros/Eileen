@@ -19,6 +19,10 @@ A proper map wrt. three relations
 def proper2 {T1 T2 T3 : Type} (R1 : T1 -> T1 -> Prop) (R2 : T2 -> T2 -> Prop) (R3 : T3 -> T3 -> Prop) (f : T1 -> T2 -> T3) : Prop :=
   ∀ {x y : T1} {z w : T2}, R1 x y -> R2 z w -> R3 (f x z) (f y w)
 
+@[simp]
+def proper3 (R1 : T1 -> T1 -> Prop) (R2 : T2 -> T2 -> Prop) (R3 : T3 -> T3 -> Prop) (R4 : T4 -> T4 -> Prop)
+    (f : T1 -> T2 -> T3 -> T4) : Prop :=
+  ∀ {x y : T1} {z w : T2} {a b : T3}, R1 x y -> R2 z w -> R3 a b -> R4 (f x z a) (f y w b)
 
 
 section proper_playground
