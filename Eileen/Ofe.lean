@@ -812,8 +812,47 @@ lemma const_contractive {α β: Type} [OFE α] [OFE β] (x : β) : contractive (
 
 
 
+/-
+## Unit type
+-/
 
+def unitO : Type := Unit
 
+instance : OFE unitO where
+  irel _ _ _ := True
+  rel _ _ := True
+  equivalence := by simp [Equivalence.mk]
+  equiv := by simp [Equivalence.mk]
+  mono := by simp
+  limit := by simp
+
+instance : DiscreteOFE unitO where
+  discrete := by simp
+
+instance : COFE unitO where
+  lim _ := Unit.unit
+  complete := by simp
+
+/-
+## Empty type
+-/
+
+def emptyO : Type := Empty
+
+instance : OFE emptyO where
+  irel _ _ _ := True
+  rel _ _ := True
+  equivalence := by simp [Equivalence.mk]
+  equiv := by simp [Equivalence.mk]
+  mono := by simp
+  limit := by simp
+
+instance : DiscreteOFE emptyO where
+  discrete := by simp
+
+instance : COFE emptyO where
+  lim c := by cases c 0
+  complete c := by simp
 
 
 
