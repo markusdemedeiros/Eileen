@@ -323,6 +323,8 @@ structure NonExpansive (M N : Type) [OFE M] [OFE N] where
 
 attribute [simp] NonExpansive.toFun
 
+-- FIXME: Brackets
+notation:30 a1 " -n> "  a2 => NonExpansive a1 a2
 
 /-- [semi-bundled] [2.2] A type F behaves like an irel morphism from M to N at each index  -/
 class NonExpansiveClass (F : Type) (M N : outParam Type) [OFE M] [OFE N] extends
@@ -472,6 +474,64 @@ lemma discrete_equiv_iff_n_iRel (T : Type) [DiscreteOFE T] (n : ℕ) (x y : T) :
 lemma discrete_equiv_iff_0_iRel (T : Type) [DiscreteOFE T] (x y : T) :
     (x ≈[0] y) <-> x ≈ y := by
   apply discrete_equiv_iff_n_iRel
+
+
+
+/-
+## OFE on function types
+
+Use the bundled function type
+-/
+
+instance [OFE A] [OFE B] : IRel (A -n> B) where
+  irel n f g := ∀ x, f x ≈[n] g x
+
+instance [OFE A] [OFE B] : Rel (A -n> B) where
+  rel f g := ∀ x, f x ≈ g x
+
+instance [OFE A] [OFE B] : ERel (A -n> B) where
+  equivalence := by
+    apply Equivalence.mk <;> simp only [Rel.rel]
+    · intros
+      exact OFE.refl
+    · intros _ _ H _
+      apply OFE.symm
+      apply H
+    · intros _ _ _ H1 H2 _
+      apply OFE.trans
+      · apply H1
+      · apply H2
+
+instance [OFE A] [OFE B] : OFE (A -n> B) where
+  equiv := by
+    intro n
+    apply Equivalence.mk <;> simp only [IRel.irel]
+    · intros
+      apply OFE.irefl
+    · intros _ _ H _
+      apply OFE.isymm
+      apply H
+    · intros _ _ _ H1 H2 _
+      apply OFE.itrans
+      · apply H1
+      · apply H2
+  mono := by
+    simp only [is_indexed_mono, IRel.irel]
+    intros _ _ _ _ H1 H2 _
+    apply OFE.mono H1
+    apply H2
+  limit := by
+    simp only [is_indexed_refinement, IRel.irel, Rel.rel]
+    intros _ _
+    apply Iff.intro
+    · intros H _
+      apply OFE.limit.mp
+      intro _
+      apply H
+    · intros H _ _
+      apply OFE.limit.mpr
+      apply H
+
 
 
 
