@@ -1017,12 +1017,6 @@ lemma prod_irel_iff [OFE A] [OFE B] (a a' : A) (b b' : B) (n : ℕ) :
 
 
 
-
-
-
-
-
-
 /-
 ## Leibniz OFE
 -/
@@ -1052,12 +1046,71 @@ def propO  := LeibnizO Prop
 
 
 
-
-
 /-
 ## Later OFE
 -/
 
+
+structure laterO (T : Type) : Type where
+  Next ::
+  t : T
+
+prefix:max  "▸"  => laterO
+
+-- FIXME: Clean up this instance
+instance [I : OFE T] : OFE ▸T where
+  irel n x y:= later (I.irel) n x.t y.t
+  rel x y := I.rel x.t y.t
+  equivalence := by
+    apply Equivalence.mk
+    · simp
+      intro
+      apply OFE.refl
+    · simp
+      intros
+      apply OFE.symm
+      trivial
+    · simp
+      intros
+      apply OFE.trans
+      · trivial
+      · trivial
+  equiv := by
+    intro n
+    -- apply iLater_is_indexed_equiv
+    apply Equivalence.mk
+    · simp [later]
+      intros
+      apply OFE.irefl
+    · simp [later]
+      intros _ _ H _ _
+      apply OFE.isymm
+      apply H
+      trivial
+    · simp [later]
+      intros _ _ _ H1 H2 _ _
+      apply OFE.itrans
+      · apply H1
+        trivial
+      · apply H2
+        trivial
+  mono := by
+    apply iLater_is_indexed_mono
+    simp
+    intros
+    apply OFE.mono
+    · trivial
+    · trivial
+  limit := by
+    apply iLater_is_indexed_refinement
+    · simp
+      intros
+      apply OFE.limit
+    · simp
+      intros
+      apply OFE.mono
+      · trivial
+      · trivial
 
 
 
