@@ -558,20 +558,72 @@ instance : CategoryTheory.ConcreteCategory OFECat :=
 
 
 
-class Contractive (M N : Type) [IRel M] [IRel N]  where
+
+
+
+structure Contractive (M N : Type) [OFE M] [OFE N]  where
   toFun : M -> N
   contractive : contractive toFun
 
-class ContractiveClass (F : Type) (M N : outParam Type) [IRel M] [IRel N] extends
+attribute [simp] Contractive.toFun
+
+-- FIXME: Brackets
+notation:30 a1 " -c> "  a2 => Contractive a1 a2
+
+class ContractiveClass (F : Type) (M N : outParam Type) [OFE M] [OFE N] extends
     FunLike F M N where
   contractive : ∀ f : F, contractive f
 
--- instance (M N : Type) [IRel M] [IRel N] : FunLike (Contractive M N) M N where
---   coe := sorry
---   coe_injective' := sorry
---
--- instance (M N : Type) [IRel M] [IRel N] : ContractiveClass (Contractive M N) M N where
---   contractive := sorry
+instance [OFE M] [OFE N] [ContractiveClass F M N] : NonExpansiveClass F M N where
+  unif_hom f := by
+    simp [nonexpansive]
+    intros
+    apply ContractiveClass.contractive
+    apply rel_later_iLater
+    · apply OFE.mono
+    trivial
+
+instance [OFE M] [OFE N] : FunLike (Contractive M N) M N where
+  coe F x := F.toFun x
+  coe_injective' := by
+    intro x _ _
+    cases x
+    congr
+
+instance [OFE M] [OFE N] : ContractiveClass (Contractive M N) M N where
+  contractive f := by
+    simp [DFunLike.coe]
+    apply f.contractive
+
+-- CanLift instance?
+
+instance [OFE M] [OFE N] [ContractiveClass F M N] : CoeOut F (Contractive M N) where
+  coe F := Contractive.mk F (ContractiveClass.contractive F)
+
+class HasContractive [OFE M] [OFE N] [FunLike F M N] (f : F) where
+  contr : contractive f
+
+instance [OFE M] [OFE N] [ContractiveClass F M N] (f : F) : HasContractive f where
+  contr := by apply ContractiveClass.contractive
+
+-- This is implied by above
+-- instance [OFE M] [OFE N] (f : M -n> N) : HasContractive f where
+--   ne := by apply ContractiveClass.contractive
+
+instance [OFE M] [OFE N] [FunLike F M N] (f : F) : CoeOut (HasContractive f) (Contractive M N) where
+  coe _ := Contractive.mk f HasContractive.contr
+
+def Contractive.lift [OFE M] [OFE N] [FunLike F M N] (f : F) [HasContractive f] : Contractive M N where
+  toFun := f
+  contractive := HasContractive.contr
+
+
+
+
+
+
+
+
 
 
 
@@ -940,14 +992,52 @@ lemma const_contractive {α β: Type} [OFE α] [OFE β] (x : β) : contractive (
 
 
 
+/-
+## Fixpoint
+-/
+
+/-- [unbundled] fixpoint -/
+def fixpoint_chain [OFE α] (f : α -> α)  [Inhabited α] (H : contractive f) : Chain α where
+  val n := Nat.repeat f (n + 1) default
+  property := by
+    simp [chain_is_cauchy]
+    intro n
+    induction n
+    · intro i
+      cases i
+      · intro
+        apply OFE.irefl
+      · simp
+    · rename_i n IH
+      intro i
+      simp [Nat.repeat]
+      cases i
+      · intro
+        apply contractive0
+        apply H
+      · intro
+        apply contractiveS
+        · apply H
+        apply IH
+        simp_all only [Nat.add_le_add_iff_right]
+
+/-- [unbundled] -/
+def fixpoint [COFE α] [Inhabited α] (f : α -> α) (H : contractive f) : α :=
+  COFE.lim (fixpoint_chain f H)
+
+
+-- TODO: Bundle
+
+/-- [unbundled] -/
+lemma fixpoint.unfold [COFE α] [Inhabited α] (f : α -> α) (H : contractive f) :
+    fixpoint f H = f (fixpoint f H) := by
+  sorry
 
 
 
 
 
-
--- def fixpoint_chain {α : Type} (f : α -> α) (O : OFE α) [Inhabited α] (H : is_contractive f) : Chain α :=
---   ⟨ fun n => Nat.repeat f (n + 1) default,
+--   ⟨ fun n =>
 --     by
 --       simp only [is_chain, IRel.irel]
 --       intro n
@@ -1152,12 +1242,10 @@ lemma prod_irel_iff [OFE A] [OFE B] (a a' : A) (b b' : B) (n : ℕ) :
     (prodC a b ≈[n] prodC a' b') <-> (a ≈[n] a') ∧  (b ≈[n] b') := by
   simp
 
-
-
-def test [COFE A] [COFE A'] [COFE B] [COFE B']
-  (f : A -n> A') (g : B -n> B') : (prodO A B) -n> (prodO A' B') where
-     toFun := sorry
-     unif_hom := sorry
+-- def test [COFE A] [COFE A'] [COFE B] [COFE B']
+--   (f : A -n> A') (g : B -n> B') : (prodO A B) -n> (prodO A' B') where
+--      toFun := sorry
+--      unif_hom := sorry
 
 /-
 ## oFunctors (OFE -> COFE functors)
@@ -1510,6 +1598,8 @@ lemma later_map_contractive [OFE A] [OFE B] :
  · apply H
    trivial
  apply OFE.irefl
+
+
 
 
 
