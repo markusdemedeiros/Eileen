@@ -8,6 +8,9 @@ import Mathlib.CategoryTheory.ConcreteCategory.Bundled
 import Mathlib.CategoryTheory.ConcreteCategory.BundledHom
 import Mathlib.CategoryTheory.ConcreteCategory.Basic
 import Mathlib.Order.Basic
+import Mathlib.CategoryTheory.Functor.Hom
+import Mathlib.CategoryTheory.Products.Basic
+import Mathlib.CategoryTheory.Types
 import Eileen.Proper
 
 
@@ -1161,8 +1164,8 @@ def test [COFE A] [COFE A'] [COFE B] [COFE B']
 -/
 
 -- TODO: I wonder if this could be written as an actual (bi)functor between categories?
+-- The Hom functor does exist in Mathlib
 -- NOTE: No hierarchy. Do we need it?
-
 
 /-- [bundled] COFE -> OFE bifunctor -/
 structure oFunctor where
@@ -1185,6 +1188,50 @@ def oFunctor.app (F : oFunctor) (a : COFECat) : OFECat := F.car (a, a)
 
 
 
+
+
+
+-- def NonExpansive.irrel [M1 : OFE M] [M2 : OFE M] [N1 : OFE N] [N2 : OFE N]
+--     (NE1 : @NonExpansive M N M1 N1)
+--     (HIRel : @OFE.toIRel M M2 = @OFE.toIRel M M1) : @NonExpansive M N M2 N2 where
+--   toFun := @NE1.toFun
+--   unif_hom := by
+--     simp [nonexpansive]
+--     intros n x y H
+--     rewrite [HIRel] at H
+--     let X := @NE1.unif_hom n x  y
+--     sorry
+
+
+-- def OFECat_is_COFE (a : OFECat) : Prop := sorry
+-- /-
+-- An oFunctor which only sends objects to COFEs
+-- -/
+-- class oFunctorCOFE (F : oFunctor) where
+--   coe : OFECat -> COFECat
+--   coe_id [COFE A] [COFE A'] [COFE B] [COFE B'] (m : prodO (A' -n> A) (B -n> B')):
+--     ∀ p, OFECat_is_COFE (F.map m p)
+
+
+-- TODO: We can only compose oFunctors whose range is all COFE's
+
+
+-- def oFunctor_cmp (F1 F2 : oFunctor) [∀ p, COFE (F2.car p)] : oFunctor where
+--   car p := F1.car (COFE.of (F2.car (p.2, p.1)), COFE.of (F2.car (p.1, p.2)))
+--   map m :=
+--     let L1 := F2.map (m.2, m.1)
+--     let L2 := F2.map (m.1, m.2)
+--     F1.map (prodC
+--       (@NonExpansive.irrel _ _ _ _ _ _ L1 sorry)
+--       sorry)
+--     -- (by
+--     --   dsimp
+--     --   apply F1.map
+--     --   · apply L1
+--     --   · apply L2)
+--   map_ne := sorry
+--   map_id := sorry
+--   map_cmp := sorry
 
 
 
