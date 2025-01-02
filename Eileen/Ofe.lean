@@ -1351,34 +1351,30 @@ instance [OFE A] [OFE B] [FunLike F A B] (f : F) [HasNonExpansive f] : HasNonExp
     apply H
     trivial
 
-section Test1
-variable [OFE A] [OFE B]
-variable (f : A -n> B)
--- #synth HasNonExpansive (laterO.map f)
--- #check @NonExpansive.lift (▸A) (▸B) (▸A -> ▸B) _ _ _ (laterO.map f) _
+-- section Test1
+-- variable [OFE A] [OFE B]
+-- variable (f : A -n> B)
+-- -- #synth HasNonExpansive (laterO.map f)
+-- -- #check @NonExpansive.lift (▸A) (▸B) (▸A -> ▸B) _ _ _ (laterO.map f) _
+--
+--
+-- -- TODO: Is there some way to automatically insert this lift?
+-- #check NonExpansive.lift (laterO.map f)
+-- end Test1
+
+lemma later_map_contractive [OFE A] [OFE B] :
+    contractive (fun f : A -n> B => (NonExpansive.lift (laterO.map f))) := by
+ simp [contractive, later, laterO.map, DFunLike.coe]
+ intros _ f f' H _ _ _
+ apply OFE.itrans
+ · apply H
+   trivial
+ apply OFE.irefl
 
 
--- TODO: Is there some way to automatically insert this lift?
-#check NonExpansive.lift (laterO.map f)
-end Test1
 
 
 
-
-
--- /- Map through a later by a nonexpansive map -/
--- def laterO.map [OFE A] [OFE B] (f : A -n> B) : ▸A -n> ▸B where
---   toFun := laterO.pre_map f
---   unif_hom := by apply later_pre_ne'
-
---  lemma later_map_contractive [OFE A] [OFE B] :
---      @contractive (A -n> B) (▸A -n> ▸B) _ _ (NonExpansive.lift (@laterO.map A B _ _) := by
---   simp [contractive, later, laterO.map, DFunLike.coe]
---   intros _ f f' H _ _ _
---   apply OFE.itrans
---   · apply H
---     trivial
---   apply OFE.irefl
 
 
 
