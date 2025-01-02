@@ -1423,7 +1423,10 @@ abbrev LeibnizO T := Δ (WithEquality T)
 instance : LeibnizRel (LeibnizO T) where
   leibniz := by
     simp [WithEquality, Rel.rel]
-    sorry
+    intros x y
+    cases x
+    cases y
+    simp
 
 
 -- #synth ERel (LeibnizO Bool)
