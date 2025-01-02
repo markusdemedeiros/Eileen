@@ -551,6 +551,14 @@ abbrev Chain (α : Type) [OFE α] := { c : Nat -> α // chain_is_cauchy c }
 instance (α : Type) [OFE α] : CoeFun (Chain α) (fun _ => (Nat -> α)) where
   coe s := s.1
 
+lemma chain_is_cauchy' [OFE α] (c : Chain α) : ∀ {m n : Nat}, n ≤ m -> (c m) ≈[n] (c n) := by
+  rcases c with ⟨ _, cauchy ⟩
+  simp
+  intros
+  apply cauchy
+  trivial
+
+
 def Chain.map {α β : Type} [OFE α] [OFE β] (f : α -> β) (c : Chain α) (Hf : nonexpansive f) : Chain β where
   val := f ∘ c
   property := by
@@ -569,7 +577,16 @@ def Chain.const {α : Type} [OFE α] (x : α) : Chain α where
     simp
     apply OFE.irefl
 
-
+@[simp]
+def nonexpansive_app_chain [OFE α] [OFE β] (c : Chain (α -n> β)) (x : α) : Chain β where
+  val n := c n x
+  property := by
+    intro _ _ _
+    simp only [chain_is_cauchy, IRel.irel]
+    rcases c with ⟨ f, cauchy ⟩ -- FIXME: chain_is_cauchy'
+    simp only []
+    apply cauchy
+    trivial
 
 
 
@@ -609,10 +626,34 @@ lemma COFE.lim_const {α : Type} [COFE α] (x : α) :
   apply complete
 
 
-
-
-
-
+instance [OFE α] [COFE β] : COFE (α -n> β) where
+  lim c :=
+    let f (x : α) : β := COFE.lim <| nonexpansive_app_chain c x
+    let ne : nonexpansive f := by
+      simp only [nonexpansive, is_nonexpansive, proper1]
+      intro n x y H
+      -- FIXME: Setoids
+      apply OFE.itrans
+      · apply COFE.complete (nonexpansive_app_chain c x)
+      apply OFE.isymm
+      apply OFE.itrans
+      · apply COFE.complete (nonexpansive_app_chain c y)
+      apply OFE.isymm
+      simp
+      apply NonExpansive.unif_hom -- Proper
+      trivial
+    NonExpansive.mk f ne
+  complete := by
+    intro n c
+    intro x
+    -- FIXME: annoying coercion
+    rcases c with ⟨ c, cauchy ⟩
+    simp [DFunLike.coe]
+    -- FIXME: Setoids
+    apply OFE.itrans
+    · apply COFE.complete _
+    simp
+    apply OFE.irefl
 
 
 
