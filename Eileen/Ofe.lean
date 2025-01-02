@@ -59,6 +59,7 @@ def later {T : Type} (R : irelation T) : irelation T :=
   fun n x y => ∀ m, m < n -> R m x y
 
 /-- [unbundled] A function is nonexpansive wrt. two indexed equivalences -/
+@[simp]
 def is_nonexpansive {M N : Type} (RM : irelation M) (RN : irelation N) (f : M -> N) : Prop :=
   ∀ (n : Nat), proper1 (RM n) (RN n) f
 
@@ -197,6 +198,20 @@ def nonexpansive [M : IRel T1] [N : IRel T2] (f : T1 -> T2): Prop :=
 def contractive [M : IRel T1] [N : IRel T2] (f : T1 -> T2): Prop :=
   is_contractive M.irel N.irel f
 
+lemma id_nonexpansive [IRel T] : nonexpansive (@id T) := by
+  simp [nonexpansive]
+
+lemma cmp_nonexpansive [IRel T] [IRel U] [IRel V] (f : T -> U) (g : U -> V)
+    (H1 : nonexpansive f) (H2 : nonexpansive g) :
+    nonexpansive (g ∘ f) := by
+  simp only [nonexpansive, is_nonexpansive, proper1]
+  intros
+  apply H2
+  apply H1
+  trivial
+
+
+
 /-- [Semi-bundled] T has an OFE structure -/
 class OFE (T : Type) extends ERel T, IRel T where
   equiv : @is_indexed_equiv T IRel.irel
@@ -308,15 +323,6 @@ structure NonExpansive (M N : Type) [OFE M] [OFE N] where
 
 attribute [simp] NonExpansive.toFun
 
-def NonExpansive.id [OFE M] : NonExpansive M M where
-  toFun x := x
-  unif_hom := sorry
-
-
-def NonExpansive.comp [OFE α] [OFE β] [OFE γ] (g : NonExpansive β γ) (f : NonExpansive α β) : NonExpansive α γ where
-  toFun := sorry
-  unif_hom := sorry
-
 
 /-- [semi-bundled] [2.2] A type F behaves like an irel morphism from M to N at each index  -/
 class NonExpansiveClass (F : Type) (M N : outParam Type) [OFE M] [OFE N] extends
@@ -341,11 +347,21 @@ instance (M N : Type) [OFE M] [OFE N] : NonExpansiveClass (NonExpansive M N) M N
 instance [OFE M] [OFE N] [NonExpansiveClass F M N] : CoeTC F (NonExpansive M N) where
   coe F := NonExpansive.mk F (NonExpansiveClass.unif_hom F)
 
+def NonExpansive.id [OFE M] : NonExpansive M M where
+  toFun := @_root_.id _
+  unif_hom := id_nonexpansive
+
+def NonExpansive.comp [OFE α] [OFE β] [OFE γ] (g : NonExpansive β γ) (f : NonExpansive α β) : NonExpansive α γ where
+  toFun := g ∘ f
+  unif_hom := by
+    simp only [DFunLike.coe]
+    apply cmp_nonexpansive
+    · apply f.unif_hom
+    · apply g.unif_hom
 
 
 /-- [bundled] [3.1] Objects in the category of OFE's -/
 def OFECat := CategoryTheory.Bundled OFE
-
 
 -- [3.2]
 instance : CoeSort OFECat Type where
@@ -365,16 +381,14 @@ instance : CategoryTheory.BundledHom @NonExpansive where
   id _ := NonExpansive.id
   comp := @NonExpansive.comp
   comp_toFun _ _ _ f g := by
-    simp only
-    sorry
+    simp only [DFunLike.coe]
+    rfl
 
 instance : CategoryTheory.LargeCategory @OFECat :=
   CategoryTheory.BundledHom.category @NonExpansive
 
 instance : CategoryTheory.ConcreteCategory OFECat :=
   CategoryTheory.BundledHom.concreteCategory NonExpansive
-
-
 
 
 
