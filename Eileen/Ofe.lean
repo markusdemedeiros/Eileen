@@ -583,6 +583,7 @@ instance [OFE M] [OFE N] [ContractiveClass F M N] : NonExpansiveClass F M N wher
     · apply OFE.mono
     trivial
 
+
 instance [OFE M] [OFE N] : FunLike (Contractive M N) M N where
   coe F x := F.toFun x
   coe_injective' := by
@@ -616,6 +617,13 @@ instance [OFE M] [OFE N] [FunLike F M N] (f : F) : CoeOut (HasContractive f) (Co
 def Contractive.lift [OFE M] [OFE N] [FunLike F M N] (f : F) [HasContractive f] : Contractive M N where
   toFun := f
   contractive := HasContractive.contr
+
+lemma Contractive.unif_hom [OFE M] [OFE N ] (f : M -c> N) : nonexpansive f :=
+  NonExpansiveClass.unif_hom f
+
+
+
+
 
 
 
@@ -866,7 +874,7 @@ def nonexpansive_app_chain [OFE α] [OFE β] (c : Chain (α -n> β)) (x : α) : 
 
 class COFE (α : Type) extends OFE α where
   lim : Chain α -> α
-  complete : ∀ {n : Nat}, ∀ (c : Chain α), (lim c) ≈[n] (c n)
+  complete : ∀ (n : Nat), ∀ (c : Chain α), (lim c) ≈[n] (c n)
 
 lemma COFE.map {α β : Type} [COFEα: COFE α] [COFEβ : COFE β] (f : α -> β) (c : Chain α) (Hf : nonexpansive f) :
     lim (Chain.cmap c Hf) ≈ f (lim c) := by
@@ -901,10 +909,10 @@ instance [OFE α] [COFE β] : COFE (α -n> β) where
       intro n x y H
       -- FIXME: Setoids
       apply OFE.itrans
-      · apply COFE.complete (nonexpansive_app_chain c x)
+      · apply COFE.complete _ (nonexpansive_app_chain c x)
       apply OFE.isymm
       apply OFE.itrans
-      · apply COFE.complete (nonexpansive_app_chain c y)
+      · apply COFE.complete _ (nonexpansive_app_chain c y)
       apply OFE.isymm
       simp
       apply NonExpansive.unif_hom -- Proper
@@ -1021,45 +1029,107 @@ def fixpoint_chain [OFE α] (f : α -> α)  [Inhabited α] (H : contractive f) :
         apply IH
         simp_all only [Nat.add_le_add_iff_right]
 
-/-- [unbundled] -/
-def fixpoint [COFE α] [Inhabited α] (f : α -> α) (H : contractive f) : α :=
-  COFE.lim (fixpoint_chain f H)
+-- /- [unbundled] -/
+-- def fixpoint [COFE α] [Inhabited α] (f : α -> α) (H : contractive f) : α :=
+--   COFE.lim (fixpoint_chain f H)
+
+def Contractive.fixpoint_chain [COFE α] [Inhabited α] (f : α -c> α) : Chain α :=
+  _root_.fixpoint_chain f f.contractive
+
+/-- [bundled] -/
+def Contractive.fixpoint [COFE α] [Inhabited α] (f : α -c> α) : α :=
+  COFE.lim (fixpoint_chain f)
+
+/-- [bundled] -/
+lemma Contractive.unfold [COFE α] [Inhabited α] (f : α -c> α) :
+    Contractive.fixpoint f ≈ f (Contractive.fixpoint f) := by
+  apply OFE.limit.mp
+  intro n
+  -- FIXME: Setoid
+  apply OFE.itrans
+  · apply COFE.complete n (fixpoint_chain f)
+  apply OFE.isymm
+  apply OFE.itrans
+  · -- apply Contractive.contractive
+    apply Contractive.unif_hom
+    apply COFE.complete n (fixpoint_chain f)
+  apply OFE.isymm
+  induction n
+  · simp [DFunLike.coe]
+    apply (contractive0 f f.contractive)
+  · rename_i n IH
+    apply (contractiveS f f.contractive)
+    apply IH
+
+lemma Contractive.unique [COFE α] [Inhabited α] (f : α -c> α) (x : α) :
+    (x ≈ f x) -> x ≈ fixpoint f := by
+  intro H
+  apply OFE.limit.mpr at H
+  apply OFE.limit.mp
+  intro n
+  -- FIXME: Setoid
+  let L := Contractive.unfold f
+  apply OFE.limit.mpr at L
+  induction n
+  · apply OFE.itrans
+    · apply H
+    apply OFE.isymm
+    apply OFE.itrans
+    · apply L
+    apply OFE.isymm
+    apply (contractive0 f f.contractive)
+  · rename_i n IH
+    apply OFE.itrans
+    · apply H
+    apply OFE.isymm
+    apply OFE.itrans
+    · apply L
+    apply OFE.isymm
+    apply (contractiveS f f.contractive)
+    apply IH
 
 
--- TODO: Bundle
+lemma Contractive.fixpoint_ne [COFE α] [Inhabited α] (f g : α -c> α) n :
+    (∀ z, f z ≈[n] g z) -> fixpoint f ≈[n] fixpoint g := by
+  intro H
+  -- FIXME: Setoid
+  apply OFE.itrans
+  · apply COFE.complete
+  apply OFE.isymm
+  apply OFE.itrans
+  · apply COFE.complete
+  apply OFE.isymm
+  simp [fixpoint_chain, _root_.fixpoint_chain, Nat.repeat]
+  induction n
+  · apply H
+  rename_i n IH
+  simp [Nat.repeat]
+  apply OFE.itrans
+  · apply H
+  apply Contractive.contractive
+  apply (@iLater_S α IRel.irel OFE.mono _ _ n).mp
+  apply IH
+  intro i
+  apply is_indexed_mono_le
+  · apply OFE.mono
+  · apply H
+  · simp
 
-/-- [unbundled] -/
-lemma fixpoint.unfold [COFE α] [Inhabited α] (f : α -> α) (H : contractive f) :
-    fixpoint f H = f (fixpoint f H) := by
+lemma Contractive.proper [COFE α] [Inhabited α] (f g : α -c> α) :
+    (∀ x, f x ≈ g x) -> fixpoint f ≈ fixpoint g := by
+  intro H
+  apply OFE.limit.mp
+  intro
+  apply Contractive.fixpoint_ne
+  intro z
+  apply OFE.limit.mpr (H z)
+
+lemma Contractive.fixpoint_ind [COFE α] [Inhabited α] (f : α -c> α)
+    (P : α -> Prop) (HP : proper1 Rel.rel (fun A B => A -> B) P)
+    (Hbase : ∃ x, P x) (Hind : ∀ x, P x -> P (f x)) (Hlim : True) :
+    P (fixpoint f) := by
+  -- TODO: Limit preservation lemmas
   sorry
-
-
-
-
-
---   ⟨ fun n =>
---     by
---       simp only [is_chain, IRel.irel]
---       intro n
---       induction n
---       · simp
---         sorry
---       rename_i n IH
---       intro n' Hn'
---
---       cases (Nat.eq_or_lt_of_le Hn')
---       · simp_all
---         sorry
---       rename_i h'
---       -- have IH' := @IH n' (Nat.le_of_lt_succ h')
---       unfold is_contractive at H
---       simp [Nat.repeat]
---
---       -- have H'' := H n' (Nat.repeat f (n + 1) default ) (Nat.repeat f n' default) ?G1
---       -- case G1 =>
---       --   intro m Hmn'
---       --   sorry
---       sorry ⟩
 
 
 
@@ -1459,7 +1529,7 @@ instance [COFE α] : COFE (▸α) where
     apply OFE.isymm
     apply OFE.itrans
     · apply OFE.isymm
-      apply COFE.complete c.later
+      apply COFE.complete _ c.later
     apply OFE.irefl
 
 
