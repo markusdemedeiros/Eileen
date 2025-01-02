@@ -197,8 +197,23 @@ attribute [simp] Rel.rel
 /--
 An equivalence relation
 -/
-class ERel (T : Type u) extends Rel T where
+class ERel (T : Type) extends Rel T where
   equivalence : Equivalence (@Rel.rel T _)
+
+-- FIXME: Notations
+lemma ERel.refl [ERel T] : ∀ x, (@Rel.rel T _ x x) :=
+  ERel.equivalence.refl
+
+-- FIXME: Notations
+lemma ERel.symm [ERel T] : ∀ {x y}, (@Rel.rel T _ x y) → (@Rel.rel T _ y x) :=
+  ERel.equivalence.symm
+
+-- FIXME: Notations
+lemma ERel.trans [ERel T] : ∀ {x y z}, (@Rel.rel T _ x y) -> (@Rel.rel T _ y z) -> (@Rel.rel T _ x z) :=
+  ERel.equivalence.trans
+
+class LeibnizRel (T : Type u) extends Rel T where
+  leibniz : ∀ {x y : T}, (x ≈ y) -> x = y
 
 
 /--
@@ -487,31 +502,45 @@ class DiscreteOFE (T : Type) extends OFE T where
 /--
 discreteO is the default discrete OFE, which compares by equality
 -/
-structure discreteO (T : Type u) : Type u where
+structure discreteO (T : Type) : Type where
   t : T
 
 prefix:max  "Δ"  => discreteO
 
-instance (T : Type*) : Coe (Δ T) T where
-  coe := discreteO.t
-
-instance (T : Type*) : IRel (Δ T) where
-  irel _ := Eq
-
-instance (T : Type*) : Rel (Δ T) where
-  rel := Eq
-
-instance (T : Type*) : ERel (Δ T) where
-  equivalence := by apply Equivalence.mk <;> simp
-
-instance (T : Type) : OFE (Δ T) where
+instance [ERel T] : OFE (Δ T) where
+  irel _ x y := Rel.rel x.t y.t
+  rel x y := Rel.rel x.t y.t
+  equivalence := by
+    apply Equivalence.mk
+    · intro
+      apply ERel.refl
+    · simp
+      intros
+      apply ERel.symm
+      trivial
+    · simp
+      intros
+      apply ERel.trans
+      · trivial
+      · trivial
   equiv := by
-    simp [IRel.irel]
-    constructor <;> simp
-  mono  := by simp [IRel.irel]
+    intro n
+    apply Equivalence.mk
+    · intro
+      apply ERel.refl
+    · simp
+      intros
+      apply ERel.symm
+      trivial
+    · simp
+      intros
+      apply ERel.trans
+      · trivial
+      · trivial
+  mono := by simp [IRel.irel]
   limit := by simp [IRel.irel]
 
-instance (T : Type) : DiscreteOFE (Δ T) where
+instance [ERel T] : DiscreteOFE (Δ T) where
   discrete := by simp [IRel.irel]
 
 lemma discrete_equiv_iff_n_iRel (T : Type) [DiscreteOFE T] (n : ℕ) (x y : T) :
@@ -979,6 +1008,7 @@ instance [DiscreteOFE A] [DiscreteOFE B] : DiscreteOFE (prodO A B) where
 
 -- FIXME: Fix this goofy type
 -- Even if I delete this lemma it's silly to have to state it like this
+-- Do I need a low-priority coercion instance or something?
 lemma prod_irel_iff [OFE A] [OFE B] (a a' : A) (b b' : B) (n : ℕ) :
     let L : prodO A B := (a, b)
     let R : prodO A B := (a', b')
@@ -990,9 +1020,57 @@ lemma prod_irel_iff [OFE A] [OFE B] (a a' : A) (b b' : B) (n : ℕ) :
 
 
 
-/-
--- Type which specifies an OFE, and higher instance priority for specified OFE's (lower for trivial OFE's)?
 
+
+
+/-
+## Leibniz OFE
+-/
+
+@[simp, reducible, inline]
+def WithEquality (T : Type) : Type := T
+
+instance : ERel (WithEquality T) where
+  rel := Eq
+  equivalence := by simp [Equivalence.mk]
+
+abbrev LeibnizO T := Δ (WithEquality T)
+
+instance : LeibnizRel (LeibnizO T) where
+  leibniz := by simp
+
+-- #synth ERel (LeibnizO Bool)
+-- #synth OFE (LeibnizO Bool)
+
+def boolO := LeibnizO Bool
+def natO  := LeibnizO ℕ
+def intO  := LeibnizO ℤ
+/- Because we're using propext  anyways, can use equuality here -/
+def propO  := LeibnizO Prop
+
+
+
+
+
+
+
+/-
+## Later OFE
+-/
+
+
+
+
+
+
+
+
+
+
+
+
+
+/-
 
 /-- The type of step-indexed propositions -/
 @[ext]
