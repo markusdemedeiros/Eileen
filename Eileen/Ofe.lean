@@ -1140,25 +1140,48 @@ instance [DiscreteOFE A] [DiscreteOFE B] : DiscreteOFE (prodO A B) where
 -- FIXME: Fix this goofy type
 -- Even if I delete this lemma it's silly to have to state it like this
 -- Do I need a low-priority coercion instance or something?
+-- TODO: Give a notation for this?
+
+abbrev prodC [OFE A] [OFE B] (a : A) (b : B) : prodO A B := (a, b)
+
+
 lemma prod_irel_iff [OFE A] [OFE B] (a a' : A) (b b' : B) (n : ℕ) :
-    let L : prodO A B := (a, b)
-    let R : prodO A B := (a', b')
-    (L ≈[n] R) <-> (a ≈[n] a') ∧  (b ≈[n] b') := by
+    (prodC a b ≈[n] prodC a' b') <-> (a ≈[n] a') ∧  (b ≈[n] b') := by
   simp
 
 
 
+def test [COFE A] [COFE A'] [COFE B] [COFE B']
+  (f : A -n> A') (g : B -n> B') : (prodO A B) -n> (prodO A' B') where
+     toFun := sorry
+     unif_hom := sorry
 
 /-
 ## oFunctors (OFE -> COFE functors)
 -/
 
 -- TODO: I wonder if this could be written as an actual (bi)functor between categories?
+-- NOTE: No hierarchy. Do we need it?
 
-/-- [bundled] COFE -> OFE functor -/
+
+/-- [bundled] COFE -> OFE bifunctor -/
 structure oFunctor where
-  car : OFECat -> OFECat -> OFECat
+  car : COFECat × COFECat -> OFECat
+  map [COFE A] [COFE A'] [COFE B] [COFE B'] :
+    (prodO (A' -n> A) (B -n> B')) -> (car (COFE.of A, COFE.of B) -n> car (COFE.of A', COFE.of B'))
+  map_ne [COFE A] [COFE A'] [COFE B] [COFE B'] : nonexpansive (@map A A' B B' _ _ _ _)
+  map_id [COFE A] [COFE B] (x : car (COFE.of A, COFE.of B)) : map (prodC cid cid) x ≈ cid x
+  map_cmp [COFE A] [COFE A'] [COFE A''] [COFE B] [COFE B'] [COFE B'']
+      (f : A' -n> A) (g : A'' -n> A') (f' : B -n> B') (g' : B' -n> B'') x :
+    map (prodC (ccompose f g) (ccompose g' f')) x ≈ (map (prodC g g') (map (prodC f f') x))
 
+/-- Mixin: an oFunctor is contractive -/
+class oFunctorContractive (F : oFunctor) where
+  map_contractive [COFE A] [COFE A'] [COFE B] [COFE B'] :
+    contractive (@oFunctor.map F A A' B B' _ _ _ _)
+
+/-- Action of the oFunctor on objects -/
+def oFunctor.app (F : oFunctor) (a : COFECat) : OFECat := F.car (a, a)
 
 
 
