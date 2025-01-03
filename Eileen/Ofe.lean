@@ -930,6 +930,40 @@ instance [OFE α] [COFE β] : COFE (α -n> β) where
     simp
     apply OFE.irefl
 
+
+
+def limit_preserving [COFE α] (P : α -> Prop) : Prop :=
+  ∀ (c : Chain α), (∀ n, P (c n)) -> P (COFE.lim c)
+
+
+lemma limit_preserving.ext [COFE α] (P Q : α -> Prop) :
+    (∀ x, P x = Q x) -> limit_preserving P -> limit_preserving Q := by
+  sorry
+
+lemma limit_preserving.const [COFE α] (P : Prop) : limit_preserving (fun (_ : α) => P) := by
+  sorry
+
+lemma limit_preserving_discrete [COFE α] (P : α -> Prop) :
+    proper1 (IRel.irel 0) Eq P -> limit_preserving P := by
+  sorry
+
+lemma limit_preserving.and [COFE α] (P Q : α -> Prop) :
+    limit_preserving P -> limit_preserving Q -> limit_preserving (fun a => P a ∧ Q a):= by
+  sorry
+
+lemma limit_preserving.imp [COFE α] (P Q : α -> Prop) :
+    limit_preserving P -> limit_preserving Q -> limit_preserving (fun a => P a -> Q a):= by
+  sorry
+
+lemma limit_preserving.forall [COFE α] (P : β -> α -> Prop) :
+    (∀ b, limit_preserving (P b)) -> limit_preserving (fun a => ∀ b, P b a):= by
+  sorry
+
+lemma limit_preserving.equiv [COFE α] [COFE β] (f g : α -> β)
+    (Hf : nonexpansive f) (Hg : nonexpansive g) :
+    limit_preserving (fun a => f a ≈ g a) := by
+  sorry
+
 /-
 ## The category of COFE's
 -/
@@ -1124,14 +1158,62 @@ lemma Contractive.proper [COFE α] [Inhabited α] (f g : α -c> α) :
   intro z
   apply OFE.limit.mpr (H z)
 
+
 lemma Contractive.fixpoint_ind [COFE α] [Inhabited α] (f : α -c> α)
     (P : α -> Prop) (HP : proper1 Rel.rel (fun A B => A -> B) P)
-    (Hbase : ∃ x, P x) (Hind : ∀ x, P x -> P (f x)) (Hlim : True) :
+    (Hbase : ∃ x, P x) (Hind : ∀ x, P x -> P (f x)) (Hlim : limit_preserving P) :
     P (fixpoint f) := by
-  -- TODO: Limit preservation lemmas
-  sorry
-
-
+  rcases Hbase with ⟨ x, Hx ⟩
+  let chain : Chain α :=
+    ⟨ fun i => Nat.repeat f (i + 1) x,
+      by
+        intro n
+        simp only []
+        induction n
+        · simp [OFE.irefl]
+        · rename_i i IH
+          intros n H
+          simp [Nat.repeat]
+          apply Contractive.contractive
+          cases n
+          · apply @iLater_0
+          rename_i n
+          apply (@iLater_S α _ OFE.mono x x n).mp -- FIXME: What is that x x doing? Seems like a bug
+          apply IH
+          simp_all
+        ⟩
+  apply HP
+  · apply Contractive.unique f (COFE.lim chain)
+    apply OFE.limit.mp
+    intro n
+    -- FIXME: Setoid
+    apply OFE.itrans
+    · apply COFE.complete
+    apply OFE.isymm
+    apply OFE.itrans
+    · apply Contractive.unif_hom
+      apply COFE.complete
+    apply OFE.isymm
+    simp [chain, Nat.repeat]
+    induction n
+    · apply Contractive.contractive
+      apply iLater_0
+    rename_i i IH
+    simp [Nat.repeat]
+    apply Contractive.contractive
+    apply (@iLater_S α _ OFE.mono x x i).mp -- FIXME: iLater_S bug
+    apply IH
+  apply Hlim
+  intros n
+  simp [Nat.repeat]
+  induction n
+  · simp [Nat.repeat]
+    apply Hind
+    apply Hx
+  · rename_i n IH
+    simp [Nat.repeat]
+    apply Hind
+    apply IH
 
 
 
