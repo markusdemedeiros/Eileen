@@ -931,38 +931,62 @@ instance [OFE α] [COFE β] : COFE (α -n> β) where
     apply OFE.irefl
 
 
-
+@[simp]
 def limit_preserving [COFE α] (P : α -> Prop) : Prop :=
   ∀ (c : Chain α), (∀ n, P (c n)) -> P (COFE.lim c)
 
 
 lemma limit_preserving.ext [COFE α] (P Q : α -> Prop) :
     (∀ x, P x = Q x) -> limit_preserving P -> limit_preserving Q := by
-  sorry
+  intro H
+  rewrite [<- funext H]
+  simp only [imp_self]
+
 
 lemma limit_preserving.const [COFE α] (P : Prop) : limit_preserving (fun (_ : α) => P) := by
-  sorry
+  simp
 
+/-
 lemma limit_preserving_discrete [COFE α] (P : α -> Prop) :
     proper1 (IRel.irel 0) Eq P -> limit_preserving P := by
+  intros HP _ _
   sorry
+-/
+
 
 lemma limit_preserving.and [COFE α] (P Q : α -> Prop) :
     limit_preserving P -> limit_preserving Q -> limit_preserving (fun a => P a ∧ Q a):= by
-  sorry
+  simp
+  intros H1 H2 _ _ H3
+  apply And.intro
+  · apply H1
+    intro n
+    cases (H3 n)
+    trivial
+  · apply H2
+    intro n
+    cases (H3 n)
+    trivial
 
+/-
 lemma limit_preserving.imp [COFE α] (P Q : α -> Prop) :
     limit_preserving P -> limit_preserving Q -> limit_preserving (fun a => P a -> Q a):= by
+  simp
   sorry
 
 lemma limit_preserving.forall [COFE α] (P : β -> α -> Prop) :
     (∀ b, limit_preserving (P b)) -> limit_preserving (fun a => ∀ b, P b a):= by
+  simp
   sorry
 
 lemma limit_preserving.equiv [COFE α] [COFE β] (f g : α -> β)
     (Hf : nonexpansive f) (Hg : nonexpansive g) :
     limit_preserving (fun a => f a ≈ g a) := by
+  simp
   sorry
+-/
+
+
 
 /-
 ## The category of COFE's
