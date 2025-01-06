@@ -28,6 +28,13 @@ This file defines ordered families of equivalences (OFE's).
 
 -/
 
+-- TODO: Is this not somewhere already??
+instance : FunLike (A → B) A B where
+  coe f := f
+  coe_injective' := by simp [Function.Injective]
+
+
+
 /-- A binary relation over T -/
 abbrev Relation (T : Sort*) :=
   T -> T -> Prop
@@ -55,6 +62,19 @@ def irelation_mono_index {T : Sort*} (R : IRelation T) : Prop :=
 @[simp]
 def irelation_refines_relation {T : Sort*} (R : IRelation T) (R' : Relation T) : Prop :=
   ∀ {x y : T}, (∀ n, R n x y) <-> R' x y
+
+/-- An indexed relation is discrete -/
+@[simp]
+def irelation_discrete {T : Sort*} (R : IRelation T) (R' : Relation T) : Prop :=
+  ∀ {x y : T}, R 0 x y -> R' x y
+
+/-- An indexed relation is leibniz -/
+@[simp]
+def relation_leibniz {T : Sort*} (R : Relation T) : Prop :=
+  ∀ {x y : T}, (R x y) -> x = y
+
+
+
 
 section Relation
 
@@ -288,8 +308,23 @@ lemma nonexpansive_of_contractive (f : T1 -> T2) (H : contractive f) :
   intro m Hm
   apply irel_mono Hm H'
 
-end OFEFunctions
+/-- The identity function is nonexpansive -/
+lemma id_nonexpansive : nonexpansive (@id T1) := by
+  simp
 
+
+/-- The composition of nonexpansive functions is nonexpansive -/
+lemma cmp_nonexpansive {f : T1 -> T2} {g : T2 -> T3} (H1 : nonexpansive f) (H2 : nonexpansive g) :
+    nonexpansive (g ∘ f) := by
+  simp only [nonexpansive, is_proper1, Function.comp_apply]
+  intros
+  apply H2
+  apply H1
+  trivial
+
+
+
+end OFEFunctions
 
 
 
@@ -300,9 +335,7 @@ namespace OFE
 variable {T1 T2 : Sort*}
 variable [OFE T1] [OFE T2]
 
--- FIXME: For some reason, this goofy function is the only way I can get it to stop blowing up my notation
--- This will probably break typeclasses eventually
-def NonExpansive.equiv_equiv_proper {f : T1 -> T2} (H : nonexpansive f) :
+def nonexpansive_equiv_equiv_proper {f : T1 -> T2} (H : nonexpansive f) :
     is_proper1 rel rel f := by
   intro _ _ H'
   apply rel_of_forall_irel
@@ -310,8 +343,6 @@ def NonExpansive.equiv_equiv_proper {f : T1 -> T2} (H : nonexpansive f) :
   apply H
   apply forall_irel_of_rel
   apply H'
-
-
 
 
 /-
@@ -457,229 +488,60 @@ end OFELater
 
 
 
+section OFEBundled
 
+/-!
+### Bundled Hierarchy of OFE's, and the category of OFE's/COFE's
 
+See Order/Lattice.lean
+See Order/Hom/Lattice.lean
+See Order/Category/Lat.lean
 
+NOTE: How to define a Mathlib-style bundled hierarchy:
 
-/-
+Step 1: TC Hierarchy of classes
+  See Order/lattice.lean
+  Semi-bundled, hierarchy defined using extension (see Mathematics in Lean)
+  For multiple instances: see Mathlib.Order.Synonym
 
+Step 2: Semi-bundled TC hierarchy of morphisms
+  See Order/Hom/Lattice.lean
+  2.1. Define structure (hierarchy) with toFun
+  2.2. Define class (hierarchy) which extends FunLike
+  2.3. Register class instances for each structure
+  2.4. Register CoeTC from F (of class) to structure
+  2.5. Register instance of FunLike for the class
+  2.5. Define comp and id structures
 
-/-
-# Typeclass hierarchy (semi-bundled)
+Step 3: Bundled structure
+  See Order/Category/Lat.lean
+  3.1. Define bundled type with CategoryTheory.Bundled
+  3.2. Register CoeSort for the bundled type
+  3.3. Register typeclass instance for the bundled type
+  3.4. Define coercion from type to bundled type
+
+Step 4: Bundled morphisms
+  See Order/Category/Lat.lean
+  4.1. Register BundledHom instance for @structure
+  4.2. Register Category instance
+  4.3. Register ConcreteCategory instance
 -/
 
-/--
-A type with a binary relation
-Note: Dupe of std
--/
-class Rel (T : Type u) where
-  rel : T -> T -> Prop
-
-notation:30 a1 " ≈ "  a2 => Rel.rel a1 a2
-
-attribute [simp] Rel.rel
-
-/--
-An equivalence relation
--/
-class ERel (T : Type) extends Rel T where
-  equivalence : Equivalence (@Rel.rel T _)
-
--- FIXME: Notations
-lemma ERel.refl [ERel T] : ∀ x, (@Rel.rel T _ x x) :=
-  ERel.equivalence.refl
-
--- FIXME: Notations
-lemma ERel.symm [ERel T] : ∀ {x y}, (@Rel.rel T _ x y) → (@Rel.rel T _ y x) :=
-  ERel.equivalence.symm
-
--- FIXME: Notations
-lemma ERel.trans [ERel T] : ∀ {x y z}, (@Rel.rel T _ x y) -> (@Rel.rel T _ y z) -> (@Rel.rel T _ x z) :=
-  ERel.equivalence.trans
-
-class LeibnizRel (T : Type u) extends Rel T where
-  leibniz : ∀ {x y : T}, (x ≈ y) -> x = y
-
-
-/--
-An indexed binary relation
-Note: duplicate  of std.
--/
-class IRel.{u} (T : Type u) where
-  /-- The indexed binary operation on a type -/
-  irel : ℕ -> T -> T -> Prop
-
-attribute [simp] IRel.irel
-
--- FIXME: Brackets
-notation:30 a1 " ≈[ " n " ] "  a2 => IRel.irel n a1 a2
-notation:30 a1 " ≈L[ " n " ]"  a2 => (later IRel.irel n) a1 a2 -- This notation should just be used internally
-
-
-/-- A function between IRels is nonexpansive -/
-def nonexpansive [M : IRel T1] [N : IRel T2] (f : T1 -> T2): Prop :=
-  is_nonexpansive M.irel N.irel f
-
-def nonexpansive2 [M : IRel T1] [N : IRel T2] [S : IRel T3] (f : T1 -> T2 -> T3): Prop :=
-  is_nonexpansive2 M.irel N.irel S.irel f
-
-def nonexpansive3 [M : IRel T1] [N : IRel T2] [S : IRel T3] [U : IRel T4] (f : T1 -> T2 -> T3 -> T4): Prop :=
-  is_nonexpansive3 M.irel N.irel S.irel U.irel f
-
-/-- A function between IRels is contractive  -/
-def contractive [M : IRel T1] [N : IRel T2] (f : T1 -> T2): Prop :=
-  is_contractive M.irel N.irel f
-
-/-- A function between IRels is contractive  -/
-def contractive2 [M : IRel T1] [N : IRel T2] [S : IRel T3] (f : T1 -> T2 -> T3): Prop :=
-  is_contractive2 M.irel N.irel S.irel f
-
-def anticontractive [M : IRel T1] [N : IRel T2] (f : T1 -> T2): Prop :=
-  is_anticontractive M.irel N.irel f
-
-lemma id_nonexpansive [IRel T] : nonexpansive (@id T) := by
-  simp [nonexpansive]
-
-lemma cmp_nonexpansive [IRel T] [IRel U] [IRel V] (f : T -> U) (g : U -> V)
-    (H1 : nonexpansive f) (H2 : nonexpansive g) :
-    nonexpansive (g ∘ f) := by
-  simp only [nonexpansive, is_nonexpansive, proper1]
-  intros
-  apply H2
-  apply H1
-  trivial
-
-
-
-
-
-/-- [Semi-bundled] T has an OFE structure -/
-class OFE (T : Type) extends ERel T, IRel T where
-  equiv : @is_indexed_equiv T IRel.irel
-  mono : @is_indexed_mono T IRel.irel
-  limit : @is_indexed_refinement T IRel.irel Rel.rel
-
--- FIXME: Change this name. It's "indexed reflexive" but it looks like "irreflexive"
-/-- Lifted property of indexed relation from OFE -/
-lemma OFE.irefl [OFE T] {n : ℕ} {x : T} : (x ≈[n] x) :=
-  Equivalence.refl (OFE.equiv n) x
-
-/-- Lifted property of indexed relation from OFE -/
-lemma OFE.isymm [OFE T] {n : ℕ} {x y : T} : (x ≈[n] y) -> y ≈[n] x :=
-  Equivalence.symm (OFE.equiv n)
-
-/-- Lifted property of indexed relation from OFE -/
-lemma OFE.itrans [OFE T] {n : ℕ} {x y z : T} : (x ≈[n] y) -> (y ≈[n] z) -> x ≈[n] z :=
-  Equivalence.trans (OFE.equiv n)
-
-/-- Lifted property of relation from OFE -/
-lemma OFE.refl [OFE T] {x : T} : (x ≈ x) := Equivalence.refl ERel.equivalence x
-
-/-- Lifted property of relation from OFE -/
-lemma OFE.symm [OFE T] {x y : T} : (x ≈ y) -> y ≈ x := Equivalence.symm ERel.equivalence
-
-/-- Lifted property of relation from OFE -/
-lemma OFE.trans [OFE T] {x y z : T} : (x ≈ y) -> (y ≈ z) -> x ≈ z := Equivalence.trans ERel.equivalence
-
-lemma OFE.dist_le [OFE T] {x y : T} {m n : ℕ} : (x ≈[n] y) -> (m ≤ n) -> (x ≈[m] y) := by
-  apply is_indexed_mono_le
-  apply OFE.mono
-
-lemma OFE.equiv_proper [OFE T1] [OFE T2] {f : T1 -> T2} (H : nonexpansive f) :
-    proper1 Rel.rel Rel.rel f :=
-  @is_nonexpansive_refinement_proper T1 T2
-    IRel.irel IRel.irel Rel.rel Rel.rel f
-    OFE.limit OFE.limit H
-
-/- Lifted iLater properties -/
--- FIXME: Cleanup
-
-lemma OFE.rel_later_iLater [OFE T] (x y : T) : (x ≈[n] y) -> (x ≈L[n] y) := by
-  intro H
-  apply _root_.rel_later_iLater
-  · apply OFE.mono
-  · apply H
-
-lemma OFE.iLater_lt_rel [OFE T] (x y : T) (m n : ℕ) :
-    m < n -> (x ≈L[n] y) -> x ≈[m] y := by
-  intro H1 H2
-  apply _root_.iLater_lt_rel
-  · apply H1
-  · apply H2
-
-lemma OFE.iLater_0 [OFE T] (x y : T) : x ≈L[0] y := by
-  apply _root_.iLater_0
-
-lemma OFE.iLater_S [OFE T] {x y : T} {n : ℕ} : (x ≈[n] y) <-> (x ≈L[Nat.succ n] y) := by
-  apply _root_.iLater_S
-  apply OFE.mono
-
-
-
-
-
-
-/-
-## Bundled OFE's
--/
-
-
--- See Order/Lattice.lean
--- See Order/Hom/Lattice.lean
--- See Order/Category/Lat.lean
-
-
-
--- Step 1: TC Hierarchy of classes
---   See Order/lattice.lean
---   Semi-bundled, hierarchy defined using extension (see Mathematics in Lean)
---   For multiple instances: see Mathlib.Order.Synonym
-
--- Step 2: Semi-bundled TC hierarchy of morphisms
---   See Order/Hom/Lattice.lean
---   2.1. Define structure (hierarchy) with toFun
---   2.2. Define class (hierarchy) which extends FunLike
---   2.3. Register class instances for each structure
---   2.4. Register CoeTC from F (of class) to structure
---   2.5. Register instance of FunLike for the class
---   2.5. Define comp and id structures
-
--- Step 3: Bundled structure
---   See Order/Category/Lat.lean
---   3.1. Define bundled type with CategoryTheory.Bundled
---   3.2. Register CoeSort for the bundled type
---   3.3. Register typeclass instance for the bundled type
---   3.4. Define coercion from type to bundled type
-
--- Step 4: Bundled morphisms
---   See Order/Category/Lat.lean
---   4.1. Register BundledHom instance for @structure
---   4.2. Register Category instance
---   4.3. Register ConcreteCategory instance
-
-
--- NOTE: Not sure if this is the best way to organize this
--- FIXME: Can I define Contractive and NonExpansive in a hierachy
-
-
-/-- [semi-bundled] [2.1] A nonexpansive function between two indexed relations -/
+/-- [semi-bundled] [2.1] A nonexpansive function between two OFE's -/
 structure NonExpansive (M N : Type) [OFE M] [OFE N] where
   toFun : M -> N
-  unif_hom : nonexpansive toFun
+  is_nonexpansive : nonexpansive toFun
 
 attribute [simp] NonExpansive.toFun
 
--- FIXME: Brackets
-notation:30 a1 " -n> "  a2 => NonExpansive a1 a2
+notation:50 a1 " -n> "  a2 => NonExpansive a1 a2
 
-/-- [semi-bundled] [2.2] A type F behaves like an irel morphism from M to N at each index  -/
+/-- [semi-bundled] [2.2] A type F behaves like an nonexpansive function from M to N at each index  -/
 class NonExpansiveClass (F : Type) (M N : outParam Type) [OFE M] [OFE N] extends
      FunLike F M N where
-  unif_hom : ∀ f : F, nonexpansive f
+  is_nonexpansive : ∀ f : F, nonexpansive f
 
-
-
--- [2.3]
+-- [2.3] The structure behaves like a function
 instance (M N : Type) [OFE M] [OFE N] : FunLike (NonExpansive M N) M N where
   coe := fun F x => F.toFun x
   coe_injective' := by
@@ -687,130 +549,98 @@ instance (M N : Type) [OFE M] [OFE N] : FunLike (NonExpansive M N) M N where
     cases x
     congr
 
--- [2.3]
+-- [2.3] The structure behaves like a nonexpansive function
 instance (M N : Type) [OFE M] [OFE N] : NonExpansiveClass (NonExpansive M N) M N where
-  unif_hom := by
+  is_nonexpansive := by
     simp [DFunLike.coe]
-    intro f
-    apply f.unif_hom
+    intro f _ _ _ _
+    apply f.is_nonexpansive
+    trivial
 
--- Can lift a function to M -n> N when nonnexpansive holds
+-- [2.?] Regular functions can be lifted to nonexpansive functions, provided they are nonexpansive
 instance [OFE M] [OFE N] : CanLift (M -> N) (M -n> N) DFunLike.coe nonexpansive where
   prf := by
     simp [DFunLike.coe]
     intros f H
     exists NonExpansive.mk f H
 
--- Replace with HasNonExpansive + Coe?
+-- [2.?] Coercion between a term that behaves like a nonexpansive function, and the structure
 instance [OFE M] [OFE N] [NonExpansiveClass F M N] : CoeOut F (NonExpansive M N) where
-  coe F := NonExpansive.mk F (NonExpansiveClass.unif_hom F)
+  coe F := NonExpansive.mk F (NonExpansiveClass.is_nonexpansive F)
 
-
-/--
-A given function f has a proof of non-expansivity, and therefore can be lifted into NonExpansive
-
-See: laterO.map
-
-NOTE: This class is only used to register coercions
--/
+/-- The term f has a proof of its nonexpansivity -/
 class HasNonExpansive [OFE M] [OFE N] [FunLike F M N] (f : F) where
-  ne : nonexpansive f
+  is_nonexpansive : nonexpansive f
 
--- TODO: Is this not somewhere already??
-instance : FunLike (A → B) A B where
-  coe f := f
-  coe_injective' := by simp [Function.Injective]
-
--- All elemenets of a NonExpansiveClass have a nonexpansive proof
+/-- All terms of a nonexpansive type have a proof of their nonexpansivity -/
 instance [OFE M] [OFE N] [NonExpansiveClass F M N] (f : F) : HasNonExpansive f where
-  ne := by apply NonExpansiveClass.unif_hom
+  is_nonexpansive := by apply NonExpansiveClass.is_nonexpansive
 
-
--- This is implied by above
--- -- The underlying functions of a bundled NonExpansive have a nonexpansive proof
--- instance [OFE M] [OFE N] (f : M -n> N) : HasNonExpansive f where
---   ne := by apply NonExpansive.unif_hom
-
--- instance [OFE M] [OFE N] [FunLike F M N] (f : F) : CoeTC (HasNonExpansive f) (NonExpansive M N) where
---   coe _ := NonExpansive.mk f HasNonExpansive.ne
-
--- instance [OFE M] [OFE N] [FunLike F M N] (f : F) : CoeOut (HasNonExpansive f) (NonExpansive M N) where
---   coe _ := NonExpansive.mk f HasNonExpansive.ne
---
--- section neCoeTest
--- variable [OFE A] [OFE B]
--- variable (f : A -> B)
--- variable [HasNonExpansive f]
---
--- #check f
--- -- #check @CoeTC.coe (HasNonExpansive f) (NonExpansive A B) _ _
--- #check (@CoeOut.coe (HasNonExpansive f) (A -n> B) _ _)
---
--- end neCoeTest
-
+/-- An instance of the struct for a function which has a nonexpansive proof -/
 def NonExpansive.lift [OFE M] [OFE N] [FunLike F M N] (f : F) [HasNonExpansive f] : NonExpansive M N where
   toFun := f
-  unif_hom := HasNonExpansive.ne
+  is_nonexpansive := HasNonExpansive.is_nonexpansive
 
-
-
-
-
-
-def cid [OFE M] : M -n> M where
+/-- The (bundled) identity morphism in the category of OFE+NonExpansive functions -/
+def NonExpansive.cid [OFE M] : M -n> M where
   toFun := @_root_.id _
-  unif_hom := id_nonexpansive
+  is_nonexpansive := id_nonexpansive
 
-def cconst [OFE α] [OFE β] (x : β) : α -n> β where
+/-- The (bundled) constant nonexpansive function -/
+def NonExpansive.cconst [OFE α] [OFE β] (x : β) : α -n> β where
   toFun _ := x
-  unif_hom := by
+  is_nonexpansive := by
     simp [nonexpansive]
     intros
-    apply OFE.irefl
+    apply refl
 
-def ccompose [OFE α] [OFE β] [OFE γ] (g : NonExpansive β γ) (f : NonExpansive α β) : NonExpansive α γ where
+/-- The (bundled) composition of morphisms in the category of OFE+NonExpansive functions -/
+def NonExpansive.ccompose [OFE α] [OFE β] [OFE γ] (g : β -n> γ) (f : α -n> β) : α -n> γ where
   toFun := g ∘ f
-  unif_hom := by
+  is_nonexpansive := by
     simp only [DFunLike.coe]
     apply cmp_nonexpansive
-    · apply f.unif_hom
-    · apply g.unif_hom
+    · apply is_nonexpansive
+    · apply is_nonexpansive
 
 
--- It's hom functors or some crap like that
+/-- A "map" of nonexpansive functions.
+NOTE: The real construction is based on Hom functors?
+-/
 def NonExpansive.map [OFE A] [OFE B] [OFE A'] [OFE B']
     (f : A' -n> A) (g : B -n> B') (x : A -n> B) : (A' -n> B') :=
   ccompose g (ccompose x f)
 
 
-
 /-- [bundled] [3.1] Objects in the category of OFE's -/
 def OFECat := CategoryTheory.Bundled OFE
 
--- [3.2]
+-- [3.2] Coercion between objects in the category of OFE's and Type (their type)
 instance : CoeSort OFECat Type where
   coe := CategoryTheory.Bundled.α
 
--- [3.3]
+-- [3.3] The carrier type of every object in the category of OFE's is an OFE
 instance (X : OFECat) : OFE X := X.str
 
-/-- [3.4] Bundle an OFE instance into an OFECat -/
+/-- [3.4] An object in the category of OFE's, for any type that is an OFE -/
 def OFE.of (T : Type) [OFE T] : OFECat :=
   CategoryTheory.Bundled.of T
 
 
--- [4.1]
+-- [4.1]: Bundled OFE's and nonexpansive functions form a category
 instance : CategoryTheory.BundledHom @NonExpansive where
   toFun _ _ F := F
-  id _ := cid
-  comp := @ccompose
+  id _ := NonExpansive.cid
+  comp := @NonExpansive.ccompose
   comp_toFun _ _ _ f g := by
     simp only [DFunLike.coe]
     rfl
 
+/-- The category of OFE's and nonexpansive functions -/
 instance : CategoryTheory.LargeCategory @OFECat :=
   CategoryTheory.BundledHom.category @NonExpansive
 
+/-- The category of OFE's and nonexpansive functions -/
 instance : CategoryTheory.ConcreteCategory OFECat :=
   CategoryTheory.BundledHom.concreteCategory NonExpansive
 
@@ -819,41 +649,29 @@ instance : CategoryTheory.ConcreteCategory OFECat :=
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
+/-- A contractive function between two OFE's -/
 structure Contractive (M N : Type) [OFE M] [OFE N]  where
   toFun : M -> N
-  contractive : contractive toFun
+  is_contractive : contractive toFun
 
 attribute [simp] Contractive.toFun
 
--- FIXME: Brackets
-notation:30 a1 " -c> "  a2 => Contractive a1 a2
+notation:50 a1 " -c> "  a2 => Contractive a1 a2
 
+
+/-- The type F behaves like a contractive function -/
 class ContractiveClass (F : Type) (M N : outParam Type) [OFE M] [OFE N] extends
     FunLike F M N where
-  contractive : ∀ f : F, contractive f
+  is_contractive : ∀ f : F, contractive f
 
+/-- Every term which behaves like a contractive function also behaves like
+  a nonexpansive function -/
 instance [OFE M] [OFE N] [ContractiveClass F M N] : NonExpansiveClass F M N where
-  unif_hom f := by
-    simp [nonexpansive]
-    intros
-    apply ContractiveClass.contractive
-    apply rel_later_iLater
-    · apply OFE.mono
-    trivial
+  is_nonexpansive f := by
+    apply nonexpansive_of_contractive
+    apply ContractiveClass.is_contractive
 
-
+/-- The Contractive struct behaves like a function -/
 instance [OFE M] [OFE N] : FunLike (Contractive M N) M N where
   coe F x := F.toFun x
   coe_injective' := by
@@ -861,53 +679,40 @@ instance [OFE M] [OFE N] : FunLike (Contractive M N) M N where
     cases x
     congr
 
+/-- The Contractive struct behaves like a contractive function -/
 instance [OFE M] [OFE N] : ContractiveClass (Contractive M N) M N where
-  contractive f := by
-    simp [DFunLike.coe]
-    apply f.contractive
+  is_contractive f := by
+    simp only [DFunLike.coe]
+    apply Contractive.is_contractive
 
--- CanLift instance?
 
+/-- Coercion between Anything which behaves like a contractive function and the contractive struct -/
 instance [OFE M] [OFE N] [ContractiveClass F M N] : CoeOut F (Contractive M N) where
-  coe F := Contractive.mk F (ContractiveClass.contractive F)
+  coe F := Contractive.mk F (ContractiveClass.is_contractive F)
 
+/-- The term f behaves has a proof of contractivity -/
 class HasContractive [OFE M] [OFE N] [FunLike F M N] (f : F) where
-  contr : contractive f
+  is_contractive : contractive f
 
+/-- Any term is a type of contractive functions has a proof of contractivity -/
 instance [OFE M] [OFE N] [ContractiveClass F M N] (f : F) : HasContractive f where
-  contr := by apply ContractiveClass.contractive
+  is_contractive := by apply ContractiveClass.is_contractive
 
--- This is implied by above
--- instance [OFE M] [OFE N] (f : M -n> N) : HasContractive f where
---   ne := by apply ContractiveClass.contractive
-
+/-- Coercion between any term which has a proof of contractivity and the Contractive struct -/
 instance [OFE M] [OFE N] [FunLike F M N] (f : F) : CoeOut (HasContractive f) (Contractive M N) where
-  coe _ := Contractive.mk f HasContractive.contr
+  coe _ := Contractive.mk f HasContractive.is_contractive
 
+/-- Obtain a Contractive struct for any term which has a proof of contractivity -/
 def Contractive.lift [OFE M] [OFE N] [FunLike F M N] (f : F) [HasContractive f] : Contractive M N where
   toFun := f
-  contractive := HasContractive.contr
+  is_contractive := HasContractive.is_contractive
 
-lemma Contractive.unif_hom [OFE M] [OFE N ] (f : M -c> N) : nonexpansive f :=
-  NonExpansiveClass.unif_hom f
-
+end OFEBundled
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+/-
 
 
 /-
