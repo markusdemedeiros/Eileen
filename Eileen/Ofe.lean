@@ -63,16 +63,28 @@ def irelation_mono_index {T : Sort*} (R : IRelation T) : Prop :=
 def irelation_refines_relation {T : Sort*} (R : IRelation T) (R' : Relation T) : Prop :=
   ∀ {x y : T}, (∀ n, R n x y) <-> R' x y
 
+
+/-- An element in an indexed relation is discrete -/
+@[simp]
+def is_discrete {T : Sort*} (e : T) (R : IRelation T) (R' : Relation T) : Prop :=
+  ∀ {y}, (R 0 e y) -> R' e y
+
 /-- An indexed relation is discrete -/
 @[simp]
 def irelation_discrete {T : Sort*} (R : IRelation T) (R' : Relation T) : Prop :=
-  ∀ {x y : T}, R 0 x y -> R' x y
+  ∀ {x}, is_discrete x R R'
+
+
+/-- An element in a relation is leibnize -/
+@[simp]
+def is_leibniz {T : Sort*} (e : T) (R' : Relation T) : Prop :=
+  ∀ {y}, (R' e y) -> e = y
+
 
 /-- An indexed relation is leibniz -/
 @[simp]
-def relation_leibniz {T : Sort*} (R : Relation T) : Prop :=
-  ∀ {x y : T}, (R x y) -> x = y
-
+def relation_leibniz {T : Sort*} (R' : Relation T) : Prop :=
+  ∀ {x : T}, is_leibniz x R'
 
 
 
@@ -335,7 +347,7 @@ namespace OFE
 variable {T1 T2 : Sort*}
 variable [OFE T1] [OFE T2]
 
-def nonexpansive_equiv_equiv_proper {f : T1 -> T2} (H : nonexpansive f) :
+lemma nonexpansive_equiv_equiv_proper {f : T1 -> T2} (H : nonexpansive f) :
     is_proper1 rel rel f := by
   intro _ _ H'
   apply rel_of_forall_irel
@@ -528,7 +540,7 @@ Step 4: Bundled morphisms
 -/
 
 /-- [semi-bundled] [2.1] A nonexpansive function between two OFE's -/
-structure NonExpansive (M N : Type) [OFE M] [OFE N] where
+structure NonExpansive (M N : Sort*) [OFE M] [OFE N] where
   toFun : M -> N
   is_nonexpansive : nonexpansive toFun
 
@@ -537,12 +549,12 @@ attribute [simp] NonExpansive.toFun
 notation:50 a1 " -n> "  a2 => NonExpansive a1 a2
 
 /-- [semi-bundled] [2.2] A type F behaves like an nonexpansive function from M to N at each index  -/
-class NonExpansiveClass (F : Type) (M N : outParam Type) [OFE M] [OFE N] extends
+class NonExpansiveClass (F : Sort*) (M N : outParam Sort*) [OFE M] [OFE N] extends
      FunLike F M N where
   is_nonexpansive : ∀ f : F, nonexpansive f
 
 -- [2.3] The structure behaves like a function
-instance (M N : Type) [OFE M] [OFE N] : FunLike (NonExpansive M N) M N where
+instance (M N : Sort*) [OFE M] [OFE N] : FunLike (NonExpansive M N) M N where
   coe := fun F x => F.toFun x
   coe_injective' := by
     intro x y H
@@ -550,7 +562,7 @@ instance (M N : Type) [OFE M] [OFE N] : FunLike (NonExpansive M N) M N where
     congr
 
 -- [2.3] The structure behaves like a nonexpansive function
-instance (M N : Type) [OFE M] [OFE N] : NonExpansiveClass (NonExpansive M N) M N where
+instance (M N : Sort*) [OFE M] [OFE N] : NonExpansiveClass (NonExpansive M N) M N where
   is_nonexpansive := by
     simp [DFunLike.coe]
     intro f _ _ _ _
@@ -650,7 +662,7 @@ instance : CategoryTheory.ConcreteCategory OFECat :=
 
 
 /-- A contractive function between two OFE's -/
-structure Contractive (M N : Type) [OFE M] [OFE N]  where
+structure Contractive (M N : Sort*) [OFE M] [OFE N]  where
   toFun : M -> N
   is_contractive : contractive toFun
 
@@ -660,7 +672,7 @@ notation:50 a1 " -c> "  a2 => Contractive a1 a2
 
 
 /-- The type F behaves like a contractive function -/
-class ContractiveClass (F : Type) (M N : outParam Type) [OFE M] [OFE N] extends
+class ContractiveClass (F : Sort*) (M N : outParam Sort*) [OFE M] [OFE N] extends
     FunLike F M N where
   is_contractive : ∀ f : F, contractive f
 
@@ -711,165 +723,152 @@ end OFEBundled
 
 
 
+section OFEDiscrete
 
-/-
+/-! ### A discrete OFE -/
 
-
-/-
-## Discrete OFE
--/
-
-
-/-- [unbundled] An element in an indexed relation is discrete -/
-@[simp]
-def is_discrete [OFE T] (e : T) : Prop := ∀ y, (e ≈[0] y) -> e ≈ y
 
 /-- [semi-bundled] A discrete OFE is an OFE where all elements are discrete -/
-class DiscreteOFE (T : Type) extends OFE T where
-  discrete : ∀ (x : T), is_discrete x
+class DiscreteOFE (T : Sort*) extends OFE T where
+  discrete : ∀ (x : T), is_discrete x irel rel
+
+lemma rel_of_irel_0 {T : Sort*} [DiscreteOFE T] :
+    ∀ {x y : T}, x ≈[0] y -> x ≈ y := by
+  intros
+  apply DiscreteOFE.discrete
+  trivial
+
 
 /--
-discreteO is the default discrete OFE, which compares by equality
+discreteO is the default discrete OFE over a type with an equivalence relation
 -/
 structure discreteO (T : Type) : Type where
   t : T
 
 prefix:max  "Δ"  => discreteO
 
-instance [ERel T] : OFE (Δ T) where
-  irel _ x y := Rel.rel x.t y.t
-  rel x y := Rel.rel x.t y.t
-  equivalence := by
+instance [Rel T] : DiscreteOFE (Δ T) where
+  r x y := rel x.t y.t
+  ir _ x y := rel x.t y.t
+  iseqv := by
     apply Equivalence.mk
     · intro
-      apply ERel.refl
+      apply refl
+    · intros
+      apply symm
+      trivial
+    · intros
+      apply _root_.trans
+      · trivial
+      · trivial
+  isieqv := by
+    apply IEquivalence.mk
+    · intros
+      apply refl
     · simp
       intros
-      apply ERel.symm
+      apply symm
       trivial
     · simp
       intros
-      apply ERel.trans
+      apply _root_.trans
       · trivial
       · trivial
-  equiv := by
-    intro n
-    apply Equivalence.mk
-    · intro
-      apply ERel.refl
-    · simp
-      intros
-      apply ERel.symm
-      trivial
-    · simp
-      intros
-      apply ERel.trans
-      · trivial
-      · trivial
-  mono := by simp [IRel.irel]
-  limit := by simp [IRel.irel]
+  mono_index := by simp [irel]
+  refines := by simp [rel, irel]
+  discrete := by simp [rel, irel]
 
-instance [ERel T] : DiscreteOFE (Δ T) where
-  discrete := by simp [IRel.irel]
-
-lemma discrete_equiv_iff_n_iRel (T : Type) [DiscreteOFE T] (n : ℕ) (x y : T) :
+lemma discrete_irel_iff_rel {T : Sort*} [DiscreteOFE T] (n : ℕ) (x y : T) :
     (x ≈[n] y) <-> x ≈ y := by
   apply Iff.intro
   · intro H
     apply DiscreteOFE.discrete
-    apply OFE.dist_le H
-    apply Nat.zero_le
+    apply irel_mono_le
+    · apply H
+    · apply Nat.zero_le
   · intros
-    apply OFE.limit.mpr
+    apply forall_irel_of_rel
     trivial
 
-lemma discrete_equiv_iff_0_iRel (T : Type) [DiscreteOFE T] (x y : T) :
-    (x ≈[0] y) <-> x ≈ y := by
-  apply discrete_equiv_iff_n_iRel
+end OFEDiscrete
 
 
+section OFENonexpansive
 
-/-
-## OFE on function types
+/-! ### OFE on nonexpansive functions  -/
 
-Use the bundled function type
--/
-
-instance [OFE A] [OFE B] : IRel (A -n> B) where
-  irel n f g := ∀ x, f x ≈[n] g x
-
-instance [OFE A] [OFE B] : Rel (A -n> B) where
-  rel f g := ∀ x, f x ≈ g x
-
-instance [OFE A] [OFE B] : ERel (A -n> B) where
-  equivalence := by
-    apply Equivalence.mk <;> simp only [Rel.rel]
-    · intros
-      exact OFE.refl
-    · intros _ _ H _
-      apply OFE.symm
-      apply H
-    · intros _ _ _ H1 H2 _
-      apply OFE.trans
-      · apply H1
-      · apply H2
-
+/-- The canoncial instance of an OFE on a bundled nonexpansive function -/
 instance [OFE A] [OFE B] : OFE (A -n> B) where
-  equiv := by
-    intro n
-    apply Equivalence.mk <;> simp only [IRel.irel]
+  r f g := ∀ x, f x ≈ g x
+  ir n f g := ∀ x, f x ≈[n] g x
+  iseqv := by
+    apply Equivalence.mk
     · intros
-      apply OFE.irefl
+      apply refl
     · intros _ _ H _
-      apply OFE.isymm
+      apply symm
       apply H
     · intros _ _ _ H1 H2 _
-      apply OFE.itrans
+      apply _root_.trans
       · apply H1
       · apply H2
-  mono := by
-    simp only [is_indexed_mono, IRel.irel]
+  isieqv := by
+    apply IEquivalence.mk <;> intro n
+    · intros
+      apply refl
+    · intros _ _ H _
+      apply symm
+      apply H
+    · intros _ _ _ H1 H2 _
+      apply _root_.trans
+      · apply H1
+      · apply H2
+  mono_index := by
+    simp [irel]
     intros _ _ _ _ H1 H2 _
-    apply OFE.mono H1
+    apply irel_mono H1
     apply H2
-  limit := by
-    simp only [is_indexed_refinement, IRel.irel, Rel.rel]
+  refines := by
     intros _ _
     apply Iff.intro
     · intros H _
-      apply OFE.limit.mp
+      apply rel_of_forall_irel
       intro _
       apply H
     · intros H _ _
-      apply OFE.limit.mpr
+      apply forall_irel_of_rel
       apply H
 
-lemma nonexpansive_ccompose [OFE α] [OFE β] [OFE γ] :
-    nonexpansive2 (@ccompose α β γ _ _ _) := by
+/-- Composition in the category of OFE's is nonexpansive -/
+lemma ccompose_nonexpansive [OFE α] [OFE β] [OFE γ] :
+    nonexpansive2 (@NonExpansive.ccompose α β γ _ _ _) := by
   simp [nonexpansive2]
   intro _ _ _ _ _ H1 H2 _
-  simp [ccompose, DFunLike.coe]
+  simp [NonExpansive.ccompose, DFunLike.coe]
   -- FIXME: Setoid
-  apply OFE.itrans
-  · apply NonExpansive.unif_hom
+  apply _root_.trans
+  · apply NonExpansive.is_nonexpansive
     apply H2
-  apply OFE.isymm
-  apply OFE.itrans
-  · apply OFE.isymm
+  apply symm
+  apply _root_.trans
+  · apply symm
     apply H1
-  apply OFE.irefl
+  apply refl
 
-
+/-- Composition in the category of COFE's is proper with respect to equivalence -/
 lemma eq_proper_ccompose [OFE α] [OFE β] [OFE γ] :
-    proper2 Rel.rel Rel.rel Rel.rel (@ccompose α β γ _ _ _) := by
-  simp [ccompose, DFunLike.coe]
+    is_proper2 rel rel rel (@NonExpansive.ccompose α β γ _ _ _) := by
+  simp [NonExpansive.ccompose, DFunLike.coe]
   intros _ _ _ _ H1 H2 _
   -- FIXME: Setoid
-  apply OFE.trans
+  apply _root_.trans
   · apply H1
-  apply OFE.equiv_proper
-  · apply NonExpansive.unif_hom
-  apply H2
+  sorry
+  -- #check nonexpansive_equiv_equiv_proper     -- ...what?
+  -- apply nonexpansive_equiv_equiv_proper
+  -- apply OFE.equiv_proper
+  -- · apply NonExpansive.unif_hom
+  -- apply H2
 
 
 lemma NonExpansive.map_nonexpansive [OFE A] [OFE B] [OFE A'] [OFE B'] :
@@ -877,29 +876,35 @@ lemma NonExpansive.map_nonexpansive [OFE A] [OFE B] [OFE A'] [OFE B'] :
   simp [nonexpansive3, NonExpansive.map]
   intro _ _ _ _ _ _ _ H1 H2 H3 x
   -- FIXME: Setoid
-  apply nonexpansive_ccompose
+  apply ccompose_nonexpansive
   · apply H2
-  apply nonexpansive_ccompose
+  apply ccompose_nonexpansive
   · apply H3
   · apply H1
 
+end OFENonexpansive
 
-/-
-## Chains
--/
 
-/-- [unbundled] c satisfies the chain property -/
+
+section Chains
+
+/-! ### Chains -/
+
+
+/-- [unbundled] A function c satisfies the chain property -/
 @[simp]
-def chain_is_cauchy {α : Type} [OFE α] (c : Nat -> α) : Prop :=
+def chain_is_cauchy {T : Sort*} [OFE T] (c : ℕ -> T) : Prop :=
   ∀ {m n : Nat}, n ≤ m -> (c m) ≈[n] (c n)
 
 /-- The type of functions which satisfy the chain property -/
-abbrev Chain (α : Type) [OFE α] := { c : Nat -> α // chain_is_cauchy c }
+structure Chain (T : Sort*) [OFE T] where
+  car : ℕ -> T
+  is_cauchy : chain_is_cauchy car
 
-instance (α : Type) [OFE α] : CoeFun (Chain α) (fun _ => (Nat -> α)) where
+instance [OFE T] : CoeFun (Chain T) (fun _ => (Nat -> T)) where
   coe s := s.1
 
-lemma chain_is_cauchy' [OFE α] (c : Chain α) : ∀ {m n : Nat}, n ≤ m -> (c m) ≈[n] (c n) := by
+lemma Chain.cauchy [OFE T] (c : Chain T) : ∀ {m n : Nat}, n ≤ m -> (c m) ≈[n] (c n) := by
   rcases c with ⟨ _, cauchy ⟩
   simp
   intros
@@ -907,11 +912,10 @@ lemma chain_is_cauchy' [OFE α] (c : Chain α) : ∀ {m n : Nat}, n ≤ m -> (c 
   trivial
 
 
-
-
-def Chain.cmap {α β : Type} [OFE α] [OFE β] {f : α -> β} (c : Chain α) (Hf : nonexpansive f) : Chain β where
-  val := f ∘ c
-  property := by
+/-- Map a nonexpansive function throguh a chain -/
+def Chain.map {α β : Sort*} [OFE α] [OFE β] {f : α -> β} (c : Chain α) (Hf : nonexpansive f) : Chain β where
+  car := f ∘ c
+  is_cauchy := by
     rcases c with ⟨ c', Hc' ⟩
     simp [chain_is_cauchy, DFunLike.coe ]
     intros m n Hnm
@@ -920,105 +924,113 @@ def Chain.cmap {α β : Type} [OFE α] [OFE β] {f : α -> β} (c : Chain α) (H
     apply Hc'
     apply Hnm
 
-def Chain.const {α : Type} [OFE α] (x : α) : Chain α where
-  val _ := x
-  property := by
+def Chain.const {α : Sort*} [OFE α] (x : α) : Chain α where
+  car _ := x
+  is_cauchy := by
     intro _ _ _
     simp
-    apply OFE.irefl
+    apply refl
 
-
+/-- Apply a chain of nonexpansive functions to a value, yielding another chain -/
 @[simp]
-def nonexpansive_app_chain [OFE α] [OFE β] (c : Chain (α -n> β)) (x : α) : Chain β where
-  val n := c n x
-  property := by
+def Chain.app [OFE α] [OFE β] (c : Chain (α -n> β)) (x : α) : Chain β where
+  car n := c n x
+  is_cauchy := by
     intro _ _ _
-    simp only [chain_is_cauchy, IRel.irel]
+    simp only [chain_is_cauchy, irel]
     rcases c with ⟨ f, cauchy ⟩ -- FIXME: chain_is_cauchy'
     simp only []
     apply cauchy
     trivial
 
+end Chains
 
 
 
+section COFE
 
-/-
-## COFE
--/
+/-! ### COFEs -/
 
-class COFE (α : Type) extends OFE α where
+class COFE (α : Sort*) extends OFE α where
   lim : Chain α -> α
-  complete : ∀ (n : Nat), ∀ (c : Chain α), (lim c) ≈[n] (c n)
+  completeness : ∀ (n : Nat), ∀ (c : Chain α), (lim c) ≈[n] (c n)
 
-lemma COFE.map {α β : Type} [COFEα: COFE α] [COFEβ : COFE β] (f : α -> β) (c : Chain α) (Hf : nonexpansive f) :
-    lim (Chain.cmap c Hf) ≈ f (lim c) := by
-  apply OFE.limit.mp
+/-- COFE limit commutes with nonexpansive maps -/
+lemma COFE.lim_map_nonexpansive [COFE α] [COFE β] (f : α -> β) (c : Chain α) (Hf : nonexpansive f) :
+    lim (Chain.map c Hf) ≈ f (lim c) := by
+  apply rel_of_forall_irel
   intro n
-
   -- NOTE: Setoid rewrite
-  apply @(@COFEβ.equiv n).trans _ _ _ _ ?G
-  case G =>
+  apply _root_.trans
+  · apply COFE.completeness
+  · apply symm
     apply Hf
-    apply (@COFEα.equiv n).symm
-    apply @COFEα.complete
-  apply @(@COFEβ.equiv n).trans _ _ _ ?G
-  case G =>
-    apply @COFEβ.complete
-  simp
-  apply @(@COFEβ.equiv n).refl
+    apply COFE.completeness
 
 
-lemma COFE.lim_const {α : Type} [COFE α] (x : α) :
+/-- Limit of a constant chain -/
+lemma COFE.lim_const {α : Sort*} [COFE α] (x : α) :
     lim (Chain.const x) ≈ x := by
-  apply OFE.limit.mp
+  apply rel_of_forall_irel
   intro _
-  apply complete
+  apply COFE.completeness
 
 
+/-- COFE of nonexpansive functions between two COFE's -/
 instance [OFE α] [COFE β] : COFE (α -n> β) where
   lim c :=
-    let f (x : α) : β := COFE.lim <| nonexpansive_app_chain c x
+    let f (x : α) : β := COFE.lim <| Chain.app c x
     let ne : nonexpansive f := by
-      simp only [nonexpansive, is_nonexpansive, proper1]
+      simp
       intro n x y H
       -- FIXME: Setoids
-      apply OFE.itrans
-      · apply COFE.complete _ (nonexpansive_app_chain c x)
-      apply OFE.isymm
-      apply OFE.itrans
-      · apply COFE.complete _ (nonexpansive_app_chain c y)
-      apply OFE.isymm
+      apply _root_.trans
+      · apply COFE.completeness
+      -- _ (nonexpansive_app_chain c x)
+      apply symm
+      apply _root_.trans
+      · apply COFE.completeness -- _ (nonexpansive_app_chain c y)
+      apply symm
       simp
-      apply NonExpansive.unif_hom -- Proper
+      apply NonExpansive.is_nonexpansive
       trivial
     NonExpansive.mk f ne
-  complete := by
+  completeness := by
     intro n c
     intro x
     -- FIXME: annoying coercion
     rcases c with ⟨ c, cauchy ⟩
     simp [DFunLike.coe]
     -- FIXME: Setoids
-    apply OFE.itrans
-    · apply COFE.complete _
+    apply _root_.trans
+    · apply COFE.completeness
     simp
-    apply OFE.irefl
+    apply refl
+
+end COFE
 
 
+
+
+section LimitPreserving
+/-! ### Limit preserving propositions -/
+
+variable {α : Sort*}
+variable [COFE α]
+
+/-- A predicate is true on the limit of a chain if it is true at every point -/
 @[simp]
-def limit_preserving [COFE α] (P : α -> Prop) : Prop :=
+def limit_preserving (P : α -> Prop) : Prop :=
   ∀ (c : Chain α), (∀ n, P (c n)) -> P (COFE.lim c)
 
-
-lemma limit_preserving.ext [COFE α] (P Q : α -> Prop) :
+lemma limit_preserving.ext (P Q : α -> Prop) :
     (∀ x, P x = Q x) -> limit_preserving P -> limit_preserving Q := by
   intro H
   rewrite [<- funext H]
   simp only [imp_self]
 
 
-lemma limit_preserving.const [COFE α] (P : Prop) : limit_preserving (fun (_ : α) => P) := by
+lemma limit_preserving.const (P : Prop) : limit_preserving (fun (_ : α) => P) := by
   simp
 
 /-
@@ -1029,10 +1041,10 @@ lemma limit_preserving_discrete [COFE α] (P : α -> Prop) :
 -/
 
 
-lemma limit_preserving.and [COFE α] (P Q : α -> Prop) :
+lemma limit_preserving.and (P Q : α -> Prop) :
     limit_preserving P -> limit_preserving Q -> limit_preserving (fun a => P a ∧ Q a):= by
   simp
-  intros H1 H2 _ _ H3
+  intros H1 H2 _ H3
   apply And.intro
   · apply H1
     intro n
@@ -1062,10 +1074,13 @@ lemma limit_preserving.equiv [COFE α] [COFE β] (f g : α -> β)
 -/
 
 
+end LimitPreserving
 
-/-
-## The category of COFE's
--/
+
+
+section COFECat
+
+/-! ### The category of COFE's with nonexpansive functions -/
 
 /-- [bundled] [3.1] Objects in the category of COFE's -/
 def COFECat := CategoryTheory.Bundled COFE
@@ -1081,185 +1096,190 @@ instance (X : COFECat) : COFE X := X.str
 def COFE.of (T : Type) [COFE T] : COFECat :=
   CategoryTheory.Bundled.of T
 
-abbrev NonExpansive' (M N : Type) [COFE M] [COFE N] : Type := @NonExpansive M N _ _
-
+abbrev NonExpansive' (M N : Sort*) [COFE M] [COFE N] := @NonExpansive M N _ _
 
 -- [4.1] Homs in the category of COFE's
 instance : CategoryTheory.BundledHom @NonExpansive' where
   toFun _ _ F := F
-  id _ := cid
-  comp _ _ _ g f := ccompose g f
+  id _ := NonExpansive.cid
+  comp _ _ _ g f := NonExpansive.ccompose g f
   comp_toFun _ _ _ f g := by
     simp only [DFunLike.coe]
     rfl
 
+/-- The category of COFE's and nonexpansive functions -/
 instance : CategoryTheory.LargeCategory @COFECat :=
   CategoryTheory.BundledHom.category @NonExpansive'
 
+/-- The category of COFE's and nonexpansive functions -/
 instance : CategoryTheory.ConcreteCategory COFECat :=
   CategoryTheory.BundledHom.concreteCategory NonExpansive'
 
+end COFECat
 
 
+section Contractive
 
+/-! ### Contractive functions -/
 
-/-
-## Contractive functions
--/
+variable {α β : Sort*}
+variable [OFE α] [OFE β]
 
-lemma contractive0 {α β: Type} (f : α -> β) [OFEα : OFE α] [OFE β] [Inhabited α] (H : contractive f) x y :
+lemma contractive_rel_0 (f : α -> β) (H : contractive f) x y :
     f x ≈[ 0 ] f y := by
   apply H
-  apply iLater_0
+  apply later_rel_0
 
-lemma contractiveS {α β : Type} (f : α -> β) [OFE α] [OFE β] (H : contractive f) x y n :
+lemma contractive_rel_S_of_rel (f : α -> β) (H : contractive f) x y n :
     (x ≈[ n ] y) -> f x ≈[ n + 1 ] f y := by
   intro _
   apply H
-  apply OFE.iLater_S.mp
+  apply later_rel_S_of_rel
   trivial
 
-lemma contractive_iLater {α β : Type} (f : α -> β) [OFE α] [OFE β] (H : contractive f) x y n :
-    (x ≈L[n] y) -> f x ≈[ n ] f y := by
+lemma contractive_rel_of_later (f : α -> β) (H : contractive f) x y n :
+    (x ≈l[n] y) -> f x ≈[ n ] f y := by
   intro _
   apply H
   trivial
 
-lemma const_contractive {α β: Type} [OFE α] [OFE β] (x : β) : contractive (fun (_ : α) => x) := by
+lemma const_contractive (x : β) : contractive (fun (_ : α) => x) := by
   intro _ _ _ _
-  apply OFE.irefl
+  apply refl
+
+end Contractive
 
 
 
+section Fixpoint
+
+/-! ## Fixpoint construction in a COFE -/
+
+variable {α : Type*}
 
 
-/-
-## Fixpoint
--/
-
-/-- [unbundled] fixpoint -/
-def fixpoint_chain [OFE α] (f : α -> α)  [Inhabited α] (H : contractive f) : Chain α where
-  val n := Nat.repeat f (n + 1) default
-  property := by
+def fixpoint_chain [OFE α] [Inhabited α] (f : α -> α) (H : contractive f) : Chain α where
+  car n := Nat.repeat f (n + 1) default
+  is_cauchy := by
     simp [chain_is_cauchy]
     intro n
     induction n
     · intro i
       cases i
       · intro
-        apply OFE.irefl
+        apply refl
       · simp
     · rename_i n IH
       intro i
       simp [Nat.repeat]
       cases i
       · intro
-        apply contractive0
+        apply contractive_rel_0
         apply H
       · intro
-        apply contractiveS
+        apply contractive_rel_S_of_rel
         · apply H
         apply IH
         simp_all only [Nat.add_le_add_iff_right]
 
--- /- [unbundled] -/
--- def fixpoint [COFE α] [Inhabited α] (f : α -> α) (H : contractive f) : α :=
---   COFE.lim (fixpoint_chain f H)
 
+/-- The fixpoint chain of a contractive function -/
 def Contractive.fixpoint_chain [COFE α] [Inhabited α] (f : α -c> α) : Chain α :=
-  _root_.fixpoint_chain f f.contractive
+  _root_.fixpoint_chain f f.is_contractive
 
-/-- [bundled] -/
+/-- The fixpoint of a contractive function -/
 def Contractive.fixpoint [COFE α] [Inhabited α] (f : α -c> α) : α :=
-  COFE.lim (fixpoint_chain f)
+  COFE.lim (Contractive.fixpoint_chain f)
 
-/-- [bundled] -/
-lemma Contractive.unfold [COFE α] [Inhabited α] (f : α -c> α) :
+/-- Fixpoint unfolding lemma -/
+lemma Contractive.fixpoint_unfold [COFE α] [Inhabited α] (f : α -c> α) :
     Contractive.fixpoint f ≈ f (Contractive.fixpoint f) := by
-  apply OFE.limit.mp
+  apply rel_of_forall_irel
   intro n
   -- FIXME: Setoid
-  apply OFE.itrans
-  · apply COFE.complete n (fixpoint_chain f)
-  apply OFE.isymm
-  apply OFE.itrans
-  · -- apply Contractive.contractive
-    apply Contractive.unif_hom
-    apply COFE.complete n (fixpoint_chain f)
-  apply OFE.isymm
+  apply _root_.trans
+  · apply COFE.completeness n (fixpoint_chain f)
+  apply symm
+  apply _root_.trans
+  · apply HasNonExpansive.is_nonexpansive
+    apply COFE.completeness
+  apply symm
   induction n
   · simp [DFunLike.coe]
-    apply (contractive0 f f.contractive)
+    apply (contractive_rel_0 f f.is_contractive)
   · rename_i n IH
-    apply (contractiveS f f.contractive)
+    apply (contractive_rel_S_of_rel f f.is_contractive)
     apply IH
 
-lemma Contractive.unique [COFE α] [Inhabited α] (f : α -c> α) (x : α) :
+lemma Contractive.fixpoint_unique [COFE α] [Inhabited α] (f : α -c> α) (x : α) :
     (x ≈ f x) -> x ≈ fixpoint f := by
   intro H
-  apply OFE.limit.mpr at H
-  apply OFE.limit.mp
+  apply rel_of_forall_irel
   intro n
   -- FIXME: Setoid
-  let L := Contractive.unfold f
-  apply OFE.limit.mpr at L
+  let L := Contractive.fixpoint_unfold f
   induction n
-  · apply OFE.itrans
-    · apply H
-    apply OFE.isymm
-    apply OFE.itrans
-    · apply L
-    apply OFE.isymm
-    apply (contractive0 f f.contractive)
+  · apply _root_.trans
+    · apply forall_irel_of_rel
+      apply H
+    apply symm
+    apply _root_.trans
+    · apply forall_irel_of_rel
+      apply L
+    apply symm
+    apply (contractive_rel_0 f f.is_contractive)
   · rename_i n IH
-    apply OFE.itrans
-    · apply H
-    apply OFE.isymm
-    apply OFE.itrans
-    · apply L
-    apply OFE.isymm
-    apply (contractiveS f f.contractive)
+    apply _root_.trans
+    · apply forall_irel_of_rel
+      apply H
+    apply symm
+    apply _root_.trans
+    · apply forall_irel_of_rel
+      apply L
+    apply symm
+    apply (contractive_rel_S_of_rel f f.is_contractive)
     apply IH
 
 
-lemma Contractive.fixpoint_ne [COFE α] [Inhabited α] (f g : α -c> α) n :
+lemma Contractive.fixpoint_nonexpansive' [COFE α] [Inhabited α] (f g : α -c> α) n :
     (∀ z, f z ≈[n] g z) -> fixpoint f ≈[n] fixpoint g := by
   intro H
   -- FIXME: Setoid
-  apply OFE.itrans
-  · apply COFE.complete
-  apply OFE.isymm
-  apply OFE.itrans
-  · apply COFE.complete
-  apply OFE.isymm
+  apply _root_.trans
+  · apply COFE.completeness
+  apply symm
+  apply _root_.trans
+  · apply COFE.completeness
+  apply symm
   simp [fixpoint_chain, _root_.fixpoint_chain, Nat.repeat]
   induction n
   · apply H
   rename_i n IH
   simp [Nat.repeat]
-  apply OFE.itrans
+  apply _root_.trans
   · apply H
-  apply Contractive.contractive
-  apply (@iLater_S α IRel.irel OFE.mono _ _ n).mp
+  apply Contractive.is_contractive
+  apply later_rel_S_of_rel
   apply IH
   intro i
-  apply is_indexed_mono_le
-  · apply OFE.mono
+  apply irel_mono_le
   · apply H
   · simp
 
-lemma Contractive.proper [COFE α] [Inhabited α] (f g : α -c> α) :
+lemma Contractive.fixpoint_proper [COFE α] [Inhabited α] (f g : α -c> α) :
     (∀ x, f x ≈ g x) -> fixpoint f ≈ fixpoint g := by
   intro H
-  apply OFE.limit.mp
+  apply rel_of_forall_irel
   intro
-  apply Contractive.fixpoint_ne
+  apply Contractive.fixpoint_nonexpansive'
   intro z
-  apply OFE.limit.mpr (H z)
+  apply forall_irel_of_rel
+  apply (H z)
 
 
+-- TODO: What's a Lean-appropriate induction principle?
 lemma Contractive.fixpoint_ind [COFE α] [Inhabited α] (f : α -c> α)
-    (P : α -> Prop) (HP : proper1 Rel.rel (fun A B => A -> B) P)
+    (P : α -> Prop) (HP : is_proper1 rel (fun A B => A -> B) P)
     (Hbase : ∃ x, P x) (Hind : ∀ x, P x -> P (f x)) (Hlim : limit_preserving P) :
     P (fixpoint f) := by
   rcases Hbase with ⟨ x, Hx ⟩
@@ -1269,38 +1289,37 @@ lemma Contractive.fixpoint_ind [COFE α] [Inhabited α] (f : α -c> α)
         intro n
         simp only []
         induction n
-        · simp [OFE.irefl]
+        · simp [refl]
         · rename_i i IH
           intros n H
           simp [Nat.repeat]
-          apply Contractive.contractive
+          apply Contractive.is_contractive
           cases n
-          · apply @iLater_0
+          · apply later_rel_0
           rename_i n
-          apply (@iLater_S α _ OFE.mono x x n).mp -- FIXME: What is that x x doing? Seems like a bug
+          apply later_rel_S_of_rel
           apply IH
-          simp_all
-        ⟩
+          simp_all ⟩
   apply HP
-  · apply Contractive.unique f (COFE.lim chain)
-    apply OFE.limit.mp
+  · apply Contractive.fixpoint_unique f (COFE.lim chain)
+    apply rel_of_forall_irel
     intro n
     -- FIXME: Setoid
-    apply OFE.itrans
-    · apply COFE.complete
-    apply OFE.isymm
-    apply OFE.itrans
-    · apply Contractive.unif_hom
-      apply COFE.complete
-    apply OFE.isymm
+    apply _root_.trans
+    · apply COFE.completeness
+    apply symm
+    apply _root_.trans
+    · apply HasNonExpansive.is_nonexpansive
+      apply COFE.completeness
+    apply symm
     simp [chain, Nat.repeat]
     induction n
-    · apply Contractive.contractive
-      apply iLater_0
+    · apply Contractive.is_contractive
+      apply later_rel_0
     rename_i i IH
     simp [Nat.repeat]
-    apply Contractive.contractive
-    apply (@iLater_S α _ OFE.mono x x i).mp -- FIXME: iLater_S bug
+    apply Contractive.is_contractive
+    apply later_rel_S_of_rel
     apply IH
   apply Hlim
   intros n
@@ -1314,7 +1333,11 @@ lemma Contractive.fixpoint_ind [COFE α] [Inhabited α] (f : α -c> α)
     apply Hind
     apply IH
 
+end Fixpoint
 
+
+
+/-
 
 
 /-
