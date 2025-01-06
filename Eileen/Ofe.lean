@@ -1,7 +1,6 @@
 /-
 Authors: Markus de Medeiros
 -/
-
 import Mathlib.CategoryTheory.Category.Basic
 import Mathlib.Data.FunLike.Basic
 import Mathlib.CategoryTheory.ConcreteCategory.Bundled
@@ -13,23 +12,410 @@ import Mathlib.CategoryTheory.Products.Basic
 import Mathlib.CategoryTheory.Types
 import Eileen.Proper
 
+/-!
+This file defines ordered families of equivalences (OFE's).
 
+## Main definitions
 
--- NOTE / Skipped
---  - Apparently inferring the right OFE is hard for CMRA's and unital CMRA's (ln. 100)
---  - Bundled type
---  + 160
+## Main statements
 
--- FIXME: Fix the naming scheme
--- FIXME: Generalize type unvierses
+## Implementation Notes
+- Because we have bundled OFE's, it's easier to defined nonexpansive functions as between
+  OFE's instead of IRels, even though the latter is more general.
 
-/-
-# Basic props
+## References
+
 -/
 
-abbrev relation (T : Type) : Type := T -> T -> Prop
 
-abbrev irelation (T : Type) := ℕ -> T -> T -> Prop
+
+/-- A binary relation over T -/
+abbrev Relation (T : Sort*) :=
+  T -> T -> Prop
+
+/-- A binary relation over T, indexed by ℕ -/
+abbrev IRelation (T : Sort*) :=
+  ℕ -> T -> T -> Prop
+
+/-- The later constructions on an IRelation -/
+@[simp]
+def later {T : Sort*} (R : IRelation T) : IRelation T :=
+  fun n x y => ∀ m, m < n -> R m x y
+
+/-- The uniform construction on an IRelation -/
+@[simp]
+def unif {T : Sort*} (R : IRelation T) : Relation T :=
+  fun (x y : T) => ∀ i, R i x y
+
+
+section Relation
+
+/-! ### Declarations about step-indexed relations -/
+
+/-- A type has a distinguished equivalence relation.
+Renamed for pairity with IRel.
+The equivalence relation has a ``HasEquiv`` instance, so has access to the notation ``(_ ≈ _)``. -/
+abbrev Rel := Setoid
+
+/-- The distinguished relation of a Rel. -/
+abbrev rel {T : Sort*} [Rel T] : Relation T := Setoid.r
+
+/--
+Mathlib relations instace for Rel.
+This gives us access to the refl, trans, and symm terms.
+-/
+instance {T : Sort*} [Rel T] : IsEquiv T rel where
+  refl  := Setoid.refl
+  symm  := @Setoid.symm _ _
+  trans := @Setoid.trans _ _
+
+
+/-- An indexed relation is an equivalence relation, at each index. -/
+structure IEquivalence {T : Sort*} (r : IRelation T) : Prop where
+  /-- An indexed equivalence relation is reflexive at each index. -/
+  irefl  : ∀ x {n}, r n x x
+  /-- An indexed equivalence relation is symmetric at each index. -/
+  isymm  : ∀ {x y n}, r n x y → r n y x
+  /-- An indexed equivalence relation is transitive at each index. -/
+  itrans : ∀ {x y z n}, r n x y → r n y z → r n x z
+
+/-
+An indexed setoid is a type with a distinguished indexed equivalence relation,
+denoted ``_ ≈[ _ ] _``.
+-/
+class IRel (T : Sort*) where
+  /-- `x ≈[n] y` is the distinguished indexed equivalence relation of an indexed setoid. -/
+  ir : IRelation T
+  /-- The relation `x ≈[n] y` is an indexed equivalence relation. -/
+  isieqv : IEquivalence ir
+
+/-- The distinguished indexed equivalence relation of an indexed setoid -/
+abbrev irel {T : Sort*} [IRel T] : IRelation T :=
+  IRel.ir
+
+@[inherit_doc] notation:50 l:50 " ≈[" n:50 "] " r:50 => irel n l r
+
+/-- The later construction for an irel. -/
+abbrev ilater {T : Sort*} [IRel T] : IRelation T :=
+  later irel
+
+@[inherit_doc] notation:50 l:50 " ≈l[" n:50 "] " r:50 => ilater n l r
+
+
+/-- Mathlib relations instace for IRel at each index. -/
+instance {T : Sort*} [IRel T] (n : ℕ) : IsEquiv T (irel n) where
+  refl _      := by apply IRel.isieqv.irefl
+  symm _ _    := by apply IRel.isieqv.isymm
+  trans _ _ _ := by apply IRel.isieqv.itrans
+
+end Relation
+
+
+
+section OFEDef
+
+/-! ### Declarations about OFE's -/
+
+variable (T : Sort*)
+variable [Rel T]
+variable [IRel T]
+
+/-- An indexed relation is monotone with respect to the step index -/
+class IRelMono : Prop where
+  irel_mono : ∀ {m n}, ∀ {x y : T}, m < n -> x ≈[n] y -> x ≈[m] y
+
+export IRelMono (irel_mono)
+
+/-- An indexed relation is an indexed refinement of an equivalence relation -/
+class IRelLimit : Prop where
+  irel_iff_rel : ∀ {x y : T}, (∀ n, x ≈[n] y) <-> x ≈ y
+
+export IRelLimit (irel_iff_rel)
+
+def irel_of_rel [IRelLimit T] : ∀ {x y : T}, x ≈ y -> ∀ {n}, x ≈[n] y := by
+  intros
+  apply irel_iff_rel.mpr
+  trivial
+
+def rel_of_irel [IRelLimit T] : ∀ {x y : T}, (∀ n, x ≈[n] y) -> x ≈ y := by
+  intros
+  apply (@irel_iff_rel T).mp
+  trivial
+
+end OFEDef
+
+
+/--
+An ordered family of equivlances.
+-/
+class OFE (T : Sort*) extends Rel T, IRel T, IRelMono T, IRelLimit T
+
+
+-- FIXME: These next 6 defintions should be removable, and probably will have to be
+-- once generalized rewiting lands. For some reason, the mathlib setoid typeclasses
+-- aren't being inferred properly.
+
+section OFESetoid
+
+variable (T : Sort*)
+variable [OFE T]
+
+def OFE.refl (x : T): x ≈ x := by
+  apply Setoid.refl
+
+def OFE.symm {x y : T} : x ≈ y -> y ≈ x := by
+  apply Setoid.symm
+
+def OFE.trans {x y z : T} : x ≈ y -> y ≈ z -> x ≈ z := by
+  apply Setoid.trans
+
+def OFE.irefl (x : T) (i : ℕ) : x ≈[i] x := by
+  apply IRel.isieqv.irefl
+
+def OFE.isymm {x y : T} {i : ℕ} : x ≈[i] y -> y ≈[i] x := by
+  apply IRel.isieqv.isymm
+
+def OFE.itrans {x y z : T} {i : ℕ} : x ≈[i] y -> y ≈[i] z -> x ≈[i] z := by
+  apply IRel.isieqv.itrans
+
+end OFESetoid
+
+
+
+/-
+
+/-- Notation to help infer an irel from an OFE instance -/
+@[simp]
+def OFE.irel (I : Type*) (T : Sort*) [Ix I] [Rel T] [OFE I T] : IRelation I T :=
+  _root_.irel
+
+
+/-- Notation to help infer a rel from an OFE instance -/
+@[simp]
+def OFE.rel (I : Type*) (T : Sort*) [Ix I] [Rel T] [OFE I T] : Relation T :=
+  _root_.rel
+
+
+-- variable (I : Type*) (T : Type*)
+-- variable [Ix I] [Rel T] [OFE I T]
+-- variable (t1 t2 : T)
+-- variable (i i': I)
+-- -- -- #check (t1 ≈ t2)
+-- -- -- #check (t1 ≈[i] t2)
+-- -- -- #check (t1 ≈l[i] t2)
+-- -- -- #check (i < i')
+-- -- -- #check @irel_mono I T _ _ _
+-- -- -- #check @refl T
+-- -- -- #synth (IRel I T)
+-- -- -- #check (irel : IRelation I T)
+-- -- #check trans (_ : t1 ≈ t2)
+-- -- example (_ : t1 ≈[i] t2) : t2 ≈[i] t1 := by
+-- --   apply symm
+-- --   trivial
+--   -- No need for isymm, can just use symm
+--
+-- -- NOTE: dist_le should be replaced with irel_mono
+-/
+
+
+
+section OFEFunctions
+
+/-!
+#### Nonexpansive functions
+
+NOTE: We define nonexpansive functions with respect to OFE's rather than indexed relations,
+because it simplifies the bundling process. More generality is possible.
+-/
+
+variable {T1 T2 T3 T4 : Sort*}
+variable [OFE T1] [OFE T2] [OFE T3] [OFE T4]
+
+def nonexpansive (f : T1 -> T2) : Prop :=
+  ∀ {i : ℕ}, is_proper1 (irel i) (irel i) f
+
+def nonexpansive2 (f : T1 -> T2 -> T3) : Prop :=
+  ∀ {i : ℕ}, is_proper2 (irel i) (irel i) (irel i) f
+
+def nonexpansive3 (f : T1 -> T2 -> T3 -> T4) : Prop :=
+  ∀ {i : ℕ}, is_proper3 (irel i) (irel i) (irel i) (irel i) f
+
+def contractive (f : T1 -> T2) : Prop :=
+  ∀ {i : ℕ}, is_proper1 (later irel i) (irel i) f
+
+def contractive2 (f : T1 -> T2 -> T3) : Prop :=
+  ∀ {i : ℕ}, is_proper2 (later irel i) (later irel i) (irel i) f
+
+def contractive3 (f : T1 -> T2 -> T3 -> T4) : Prop :=
+  ∀ {i : ℕ}, is_proper3 (later irel i) (later irel i) (later irel i) (irel i) f
+
+def anticontractive (f : T1 -> T2) : Prop :=
+  ∀ {i : ℕ}, is_proper1 (irel i) (later irel i) f
+
+lemma nonexpansive_of_contractive (f : T1 -> T2) (H : contractive f) :
+    nonexpansive f := by
+  sorry
+
+-- instance (f : T1 -> T2 -> T3) [Contractive2 I f] : Nonexpansive2 I f where
+--   nonexpansive2 := sorry
+
+-- instance (f : T1 -> T2 -> T3 -> T4) [Contractive3 I f] : Nonexpansive3 I f where
+--   nonexpansive3 := sorry
+
+end OFEFunctions
+
+
+
+
+namespace OFE
+
+/-! ### Lemmas about OFE's -/
+
+variable {T1 T2 : Sort*}
+variable [OFE T1] [OFE T2]
+
+-- FIXME: For some reason, this goofy function is the only way I can get it to stop blowing up my notation
+-- This will probably break typeclasses eventually
+def equiv_equiv_proper {f : T1 -> T2} (H : nonexpansive f) :
+    is_proper1 (fun x y => x ≈ y) (fun x y => x ≈ y) f := by
+  sorry
+
+/-
+lemma OFE.equiv_proper [OFE T1] [OFE T2] {f : T1 -> T2} (H : nonexpansive f) :
+    proper1 Rel.rel Rel.rel f :=
+  @is_nonexpansive_refinement_proper T1 T2
+    IRel.irel IRel.irel Rel.rel Rel.rel f
+    OFE.limit OFE.limit H
+
+/--
+A nonexpansive map is proper wrt. equality when the index relations refine the equality
+-/
+lemma is_nonexpansive_refinement_proper (RM : irelation M) (RN : irelation N) (EM : relation M) (EN : relation N)
+    (f : M -> N) (HIM : is_indexed_refinement RM EM) (HIN : is_indexed_refinement RN EN)
+    (HN : is_nonexpansive RM RN f) :
+    proper1 EM EN f := by
+  simp
+  intro x y H
+  apply HIN.mp
+  apply HIM.mpr at H
+  intro _
+  apply HN
+  apply H
+
+-/
+
+
+-- example (f : T1 -> T2) (i : I) (HN : nonexpansive I f) (t1 t2 : T1) (H : t1 ≈[i] t2) : f t1 ≈[i] f t2 := by
+--   apply OFE.itrans
+--   · apply HN
+--     apply H
+--   apply OFE.irefl
+--
+-- example (f : T1 -> T2) (HN : nonexpansive I f) (t1 t2 : T1) (H : t1 ≈ t2) : f t1 ≈ f t2 := by
+--   apply OFE.trans
+--   · apply (equiv_equiv_proper I HN)
+--     apply H
+--   apply OFE.refl
+
+
+end OFE
+
+
+
+
+section OFELater
+
+/-! ### Properties of the later construction in OFE's -/
+
+variable  {T : Sort*}
+variable [OFE T]
+
+instance : @IEquivalence T (later irel) where
+  irefl := by
+    intro _ m _ _
+    apply irel_mono
+    · trivial
+    · apply OFE.irefl
+  isymm := by
+    intro _ _ _ HL _ _
+    apply OFE.isymm
+    apply HL
+    trivial
+  itrans := by
+    intro _ _ _ _ HL1 HL2 _ Hm
+    apply OFE.itrans
+    · apply HL1 _ Hm
+    · apply HL2 _ Hm
+
+/-
+lemma iLater_is_indexed_mono {T : Type} (R : irelation T) (H : is_indexed_mono R) :
+    is_indexed_mono (later R) := by
+  intro _ _ _ _ _ HL
+  intro _ Hm'
+  apply H Hm'
+  apply HL
+  trivial
+-/
+
+
+lemma later_of_rel (x y : T) (i : ℕ) : x ≈[i] y -> x ≈l[i] y := by
+  intro _ _ Hm
+  apply irel_mono Hm
+  trivial
+
+lemma lt_later_rel (x y : T) (m n : ℕ) :
+    (m < n) -> x ≈l[n] y -> x ≈[m] y := by
+  intro _ H
+  apply H
+  trivial
+
+/-- All elements are later-related, when the index is a base case -/
+lemma later_0 (x y : T) : x ≈l[0] y := by
+  intro _ Hm
+  exfalso
+  simp_all
+
+/-
+lemma iLater_S {T : Type} (R : irelation T) (H : is_indexed_mono R) (x y : T) (n : ℕ):
+    R n x y <-> (later R) (Nat.succ n) x y := by
+  apply Iff.intro
+  · intro H' m Hm
+    -- FIXME: Where are all those extra goals coming from?
+    -- apply is_indexed_mono_le H H' (Nat.le_of_lt_succ Hm)
+    exact @is_indexed_mono_le T n x y m R H H' (Nat.le_of_lt_succ Hm)
+  · intro H'
+    apply H'
+    apply Nat.lt_add_one
+
+lemma iLater_is_indexed_refinement {T : Type} (R : irelation T) (R' : relation T)
+  (Hi : is_indexed_refinement R R') (Hm : is_indexed_mono R) :
+    is_indexed_refinement (later R) R' := by
+  intro x y
+  apply Iff.intro
+  · intro H
+    apply Hi.mp
+    intro _
+    apply (iLater_S R Hm _ _ _).mpr
+    apply H
+  · intro _ _ _ _
+    apply Hi.mpr
+    trivial
+-/
+
+
+end OFELater
+
+
+
+
+
+
+
+/-
+
+
+
+
 
 
 /-- [unbundled] A relation is an equivalence relation  -/
@@ -1842,4 +2228,5 @@ instance : OFE SProp where
     · intro H
       subst H
       simp
+-/
 -/
