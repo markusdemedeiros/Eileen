@@ -75,7 +75,7 @@ def irelation_discrete {T : Sort*} (R : IRelation T) (R' : Relation T) : Prop :=
   ∀ {x}, is_discrete x R R'
 
 
-/-- An element in a relation is leibnize -/
+/-- An element in a relation is leibniz -/
 @[simp]
 def is_leibniz {T : Sort*} (e : T) (R' : Relation T) : Prop :=
   ∀ {y}, (R' e y) -> e = y
@@ -402,7 +402,7 @@ section OFELater
 variable  {T : Sort*}
 variable [OFE T]
 
-instance : @IEquivalence T (later irel) where
+def later_IEquivalence : @IEquivalence T (later irel) where
   irefl := by
     intro _ m _ _
     apply irel_mono
@@ -418,10 +418,6 @@ instance : @IEquivalence T (later irel) where
     apply _root_.trans -- FIXME: _root_
     · apply HL1 _ Hm
     · apply HL2 _ Hm
-
-
-
-
 
 lemma later_of_rel (x y : T) (i : ℕ) : x ≈[i] y -> x ≈l[i] y := by
   intro _ _ Hm
@@ -1337,62 +1333,60 @@ end Fixpoint
 
 
 
-/-
+section Unit
 
-
-/-
-## Unit type
--/
+/-! ### Unit OFE -/
 
 def unitO : Type := Unit
 
-instance : OFE unitO where
-  irel _ _ _ := True
-  rel _ _ := True
-  equivalence := by simp [Equivalence.mk]
-  equiv := by simp [Equivalence.mk]
-  mono := by simp
-  limit := by simp
-
 instance : DiscreteOFE unitO where
-  discrete := by simp
+  ir _ _ _ := True
+  r _ _ := True
+  iseqv := by simp [Equivalence.mk]
+  isieqv := by simp [IEquivalence.mk]
+  mono_index := by simp [irel]
+  refines := by simp [rel, irel]
+  discrete := by simp  [rel, irel]
 
 instance : COFE unitO where
   lim _ := Unit.unit
-  complete := by simp
+  completeness _ _ := by simp [irel, IRel.ir]
 
-/-
-## Empty type
--/
+end Unit
+
+
+section Empty
+
+/-! ### Empty type -/
 
 def emptyO : Type := Empty
-
-instance : OFE emptyO where
-  irel _ _ _ := True
-  rel _ _ := True
-  equivalence := by simp [Equivalence.mk]
-  equiv := by simp [Equivalence.mk]
-  mono := by simp
-  limit := by simp
-
 instance : DiscreteOFE emptyO where
-  discrete := by simp
+  ir _ _ _ := True
+  r _ _ := True
+  iseqv := by simp [Equivalence.mk]
+  isieqv := by simp [IEquivalence.mk]
+  mono_index := by simp [irel]
+  refines := by simp [rel, irel]
+  discrete := by simp [irel, rel]
 
 instance : COFE emptyO where
   lim c := by cases c 0
-  complete c := by simp
+  completeness c := by simp [irel, IRel.ir]
+
+end Empty
 
 
 
-/-
-## Product OFE
--/
+section Product
+
+/-! ### Product OFE -/
+
 def prodO (A B : Type) : Type := A × B
-
 
 -- instance [OFE A] [OFE B] : Coe (A × B) (prodO A B) where
 --   coe := sorry
 
+/-
 instance [OFE A] [OFE B] : OFE (prodO A B) where
   irel n x y := (x.1 ≈[n] y.1) ∧ (x.2 ≈[n] y.2)
   rel x y := (x.1 ≈ y.1) ∧ (x.2 ≈ y.2)
@@ -1502,6 +1496,7 @@ instance [DiscreteOFE A] [DiscreteOFE B] : DiscreteOFE (prodO A B) where
     · apply DiscreteOFE.discrete
       trivial
 
+
 -- #synth OFE (prodO emptyO emptyO)
 
 -- FIXME: Fix this goofy type
@@ -1511,10 +1506,21 @@ instance [DiscreteOFE A] [DiscreteOFE B] : DiscreteOFE (prodO A B) where
 
 abbrev prodC [OFE A] [OFE B] (a : A) (b : B) : prodO A B := (a, b)
 
-
 lemma prod_irel_iff [OFE A] [OFE B] (a a' : A) (b b' : B) (n : ℕ) :
     (prodC a b ≈[n] prodC a' b') <-> (a ≈[n] a') ∧  (b ≈[n] b') := by
   simp
+-/
+
+end Product
+
+
+
+
+
+
+
+section oFunctor
+-- TODO: This section is super broken
 
 -- def test [COFE A] [COFE A'] [COFE B] [COFE B']
 --   (f : A -n> A') (g : B -n> B') : (prodO A B) -n> (prodO A' B') where
@@ -1528,7 +1534,7 @@ lemma prod_irel_iff [OFE A] [OFE B] (a a' : A) (b b' : B) (n : ℕ) :
 -- TODO: I wonder if this could be written as an actual (bi)functor between categories?
 -- The Hom functor does exist in Mathlib
 -- NOTE: No hierarchy. Do we need it?
-
+/-
 /-- [bundled] COFE -> OFE bifunctor -/
 structure oFunctor where
   car : COFECat × COFECat -> OFECat
@@ -1547,11 +1553,7 @@ class oFunctorContractive (F : oFunctor) where
 
 /-- Action of the oFunctor on objects -/
 def oFunctor.app (F : oFunctor) (a : COFECat) : OFECat := F.car (a, a)
-
-
-
-
-
+-/
 
 -- def NonExpansive.irrel [M1 : OFE M] [M2 : OFE M] [N1 : OFE N] [N2 : OFE N]
 --     (NE1 : @NonExpansive M N M1 N1)
@@ -1596,59 +1598,54 @@ def oFunctor.app (F : oFunctor) (a : COFECat) : OFECat := F.car (a, a)
 --   map_cmp := sorry
 
 
+end oFunctor
 
 
 
+section Leibniz
 
+/-! ### Leibniz OFE -/
 
-
-
-
-
-
-
-
-
-
-
-/-
-## Leibniz OFE
--/
-
+/-- A type alias for T with eqivalence relation given by equality -/
 @[simp]
 def WithEquality (T : Type) : Type := T
 
-instance : ERel (WithEquality T) where
-  rel := Eq
-  equivalence := by simp [Equivalence.mk]
+instance : Rel (WithEquality T) where
+  r := Eq
+  iseqv := by simp [Equivalence.mk]
 
 abbrev LeibnizO T := Δ (WithEquality T)
 
-instance : LeibnizRel (LeibnizO T) where
-  leibniz := by
-    simp [WithEquality, Rel.rel]
-    intros x y
-    cases x
-    cases y
-    simp
-
+lemma LeibnizO_irel_leibniz : relation_leibniz (rel : Relation (LeibnizO T)) := by
+  intros x y
+  cases x
+  cases y
+  simp [rel, Setoid.r]
 
 -- #synth ERel (LeibnizO Bool)
 -- #synth OFE (LeibnizO Bool)
 
+
+/-- Booleans with Leibniz equivalence -/
 def boolO := LeibnizO Bool
+
+/-- Naturals with Leibniz equivalence -/
 def natO  := LeibnizO ℕ
+
+/-- Integers with Leibniz equivalence -/
 def intO  := LeibnizO ℤ
-/- Because we're using propext  anyways, can use equuality here -/
+
+/-- Propositions with Leibniz equivalence
+NOTE: Because we're using propext anyways, can use equuality here. -/
 def propO  := LeibnizO Prop
 
+end Leibniz
 
 
 
+section Later
 
-/-
-## Later OFE
--/
+/-! ### Later OFE -/
 
 
 structure laterO (T : Type) : Type where
@@ -1657,95 +1654,95 @@ structure laterO (T : Type) : Type where
 
 prefix:max  "▸"  => laterO
 
--- FIXME: Clean up this instance
-instance [I : OFE T] : OFE ▸T where
-  irel n x y:= later (I.irel) n x.t y.t
-  rel x y := I.rel x.t y.t
-  equivalence := by
+-- FIXME: Clean up this instance, there's related proofs above (just tricky TC management)
+instance [OFE T] : OFE ▸T where
+  ir n x y := later irel n x.t y.t
+  r x y := rel x.t y.t
+  iseqv := by
     apply Equivalence.mk
-    · simp
-      intro
-      apply OFE.refl
-    · simp
-      intros
-      apply OFE.symm
+    · intro
+      apply refl
+    · intros
+      apply symm
       trivial
-    · simp
-      intros
-      apply OFE.trans
+    · intros
+      apply _root_.trans
       · trivial
       · trivial
-  equiv := by
+  isieqv := by
+    apply IEquivalence.mk
     intro n
-    -- apply iLater_is_indexed_equiv
-    apply Equivalence.mk
     · simp [later]
       intros
-      apply OFE.irefl
+      apply refl
     · simp [later]
-      intros _ _ H _ _
-      apply OFE.isymm
+      intros _ _ _ H _ _
+      apply symm
       apply H
       trivial
     · simp [later]
-      intros _ _ _ H1 H2 _ _
-      apply OFE.itrans
+      intros _ _ _ _ H1 H2 _ _
+      apply _root_.trans
       · apply H1
         trivial
       · apply H2
         trivial
-  mono := by
-    apply iLater_is_indexed_mono
-    simp
-    intros
-    apply OFE.mono
-    · trivial
-    · trivial
-  limit := by
-    apply iLater_is_indexed_refinement
-    · simp
-      intros
-      apply OFE.limit
-    · simp
-      intros
-      apply OFE.mono
-      · trivial
-      · trivial
+  mono_index := by
+    intros _ _ _ _ _ H _ _
+    apply irel_mono _ ?G
+    case G =>
+      apply H
+      trivial
+    trivial
+  refines := by
+    intro x y
+    apply Iff.intro
+    · intro H
+      apply rel_of_forall_irel
+      intro _
+      apply rel_of_later_rel_S
+      apply H
+    · intro _ _ _ _
+      apply forall_irel_of_rel
+      trivial
 
 
+/-- Lift a later through a chain -/
 def Chain.later [OFE α] (c : Chain ▸α) : Chain α where
-  val n := laterO.t <| c <| Nat.succ n
-  property := by
+  car n := laterO.t <| c <| Nat.succ n
+  is_cauchy := by
     simp [DFunLike.coe]
     intros
-    apply c.property
+    apply c.is_cauchy
     · simp
       trivial
     · apply Nat.lt_add_one
 
 instance [COFE α] : COFE (▸α) where
   lim := laterO.Next ∘ COFE.lim ∘ Chain.later
-  complete := by
+  completeness := by
     intros n c
     cases n
-    · apply iLater_0
+    · apply later_rel_0
     rename_i n
     -- FIXME: Setoid
-    simp only [IRel.irel, Function.comp_apply]
-    apply (@iLater_S α IRel.irel OFE.mono _ _ _).mp
-    apply OFE.isymm
-    apply OFE.itrans
-    · apply OFE.isymm
-      apply COFE.complete _ c.later
-    apply OFE.irefl
+    simp only [irel, Function.comp_apply]
+    apply later_rel_S_of_rel
+    apply symm
+    simp
+    apply symm
+    apply _root_.trans
+    · apply COFE.completeness
+    apply refl
 
 
 lemma Next_contractive [OFE T] : contractive (@laterO.Next T) := by
-  simp [contractive, is_contractive]
+  simp [contractive, irel, IRel.ir]
 
 lemma later_car_anti_contractive [OFE T] : anticontractive (@laterO.t T) := by
-  simp [anticontractive, is_anticontractive]
+  simp [anticontractive, irel, IRel.ir]
 
+/-- Characterization for contractice functions in terms of laters -/
 lemma contractive_iff [OFE A] [OFE B] (f : A -> B) :
     contractive f <-> ∃ g : ▸A -> B, nonexpansive g ∧ ∀ x, (f x ≈ g (laterO.Next x)) := by
   apply Iff.intro
@@ -1757,73 +1754,49 @@ lemma contractive_iff [OFE A] [OFE B] (f : A -> B) :
       apply H
       trivial
     · intros
-      apply OFE.refl
+      apply Setoid.refl -- FIXME: Why can't it synthesize refl here?
   · intros H
     rcases H with ⟨ g, ⟨ HNE, H ⟩ ⟩
-    simp [contractive, is_contractive]
+    simp [contractive, Contractive.is_contractive]
     intros n x y HL
     -- FIXME: Setoid
-    apply OFE.itrans
-    · apply (OFE.limit).mpr
+    apply _root_.trans
+    · apply forall_irel_of_rel
       apply H
-    apply OFE.isymm
-    apply OFE.itrans
-    · apply (OFE.limit).mpr
+    apply symm
+    apply _root_.trans
+    · apply forall_irel_of_rel
       apply H
-    apply OFE.isymm
+    apply symm
     apply HNE
     apply HL
 
--- FIXME: How many of these lemmas need to be the stronger (pre_map) version?
--- FIXME: I feel like I should be able to remove laterO_pre_map:
---        Need to infer that the result is nonexpansive when the argument is nonexpansive
---        So that the input can cast from A -n> B and the output can cast to ▸A -n> ▸B
-
--- See: Topology.ContinusFunction.Basic
-
--- C(A, B) is my A -n> B
-
 
 /--
-The implementation of laterO.map, which isn't nonexpansive, but doesn't rewure a nonexpansive input
-
-Not sure how ofen we map by a nonexpansive map, but it might be useful?
+The implementation of laterO.map, which isn't nonexpansive, but doesn't require a nonexpansive input
+Not sure how often we map by a non-nonexpansive map, but it might be useful?
 -/
 @[simp]
 def laterO.map (f : A -> B) (x : ▸A) : ▸B := Next <| f x.t
 
 
--- CanLift doesn't work
--- section test
--- variable [OFE A] [OFE B] (f : A -> B)
--- variable (H : nonexpansive f)
---
--- #check laterO.pre_map f
--- #check (laterO.pre_map f : ▸A -> ▸B)
---
--- example : True := by
---   lift f to (A -n> B) using H
---   simp
---
--- end test
-
-lemma later_map_ne [OFE A] [OFE B] (f : A -> B) (HN : ∀ n, proper1 (later IRel.irel n) (later IRel.irel n) f) :
+lemma later_map_nonexpansive [OFE A] [OFE B] (f : A -> B) (HN : ∀ n, is_proper1 (later irel n) (later irel n) f) :
     nonexpansive (laterO.map f) := by
   simp [nonexpansive]
   intros
   apply HN
   trivial
 
-lemma later_map_ne' [OFE A] [OFE B] (f : A -n> B) : nonexpansive (laterO.map f) := by
+lemma later_map_nonexpansive' [OFE A] [OFE B] (f : A -n> B) : nonexpansive (laterO.map f) := by
   simp [nonexpansive, later]
   intros _ _ _ H _ _
-  apply NonExpansive.unif_hom
+  apply NonExpansive.is_nonexpansive
   apply H
   trivial
 
 
-lemma later_equiv_proper [OFE A] [OFE B] (f : A -> B) (HN : proper1 Rel.rel Rel.rel f) :
-    proper1 Rel.rel Rel.rel (laterO.map f) := by
+lemma later_rel_rel_proper [OFE A] [OFE B] (f : A -> B) (HN : is_proper1 rel rel f) :
+    is_proper1 rel rel (laterO.map f) := by
   simp [nonexpansive]
   intros
   apply HN
@@ -1833,7 +1806,7 @@ lemma later_map_next [OFE A] [OFE B] (f : A -> B) (x : A) :
     laterO.map f (laterO.Next x) = laterO.Next (f x) := by
   simp only [laterO.map]
 
-lemma later_map_id [OFE A] [OFE B] (f : A -> B) (x : ▸A) :
+lemma later_map_id [OFE A] [OFE B] (x : ▸A) :
     laterO.map id x = x := by
   simp only [laterO.map, id_eq]
 
@@ -1844,15 +1817,14 @@ lemma later_map_cmp [OFE A] [OFE B] [OFE C] (f : A -> B) (g : B -> C) (x : ▸ A
 lemma later_map_ext [OFE A] [OFE B] (f : A -> B) :
     (∀ x, f x ≈ g x) -> laterO.map f x ≈ laterO.map g x := by
   intro H
-  simp only [Rel.rel, laterO.map]
+  simp only [rel, laterO.map]
   apply H
 
 instance [OFE A] [OFE B] [FunLike F A B] (f : F) [HasNonExpansive f] : HasNonExpansive (laterO.map f) where
-  ne := by
+  is_nonexpansive := by
     simp [DFunLike.coe]
-    simp [nonexpansive, later]
     intros _ _ _ H _ _
-    apply HasNonExpansive.ne
+    apply HasNonExpansive.is_nonexpansive
     apply H
     trivial
 
@@ -1871,12 +1843,12 @@ lemma later_map_contractive [OFE A] [OFE B] :
     contractive (fun f : A -n> B => (NonExpansive.lift (laterO.map f))) := by
  simp [contractive, later, laterO.map, DFunLike.coe]
  intros _ f f' H _ _ _
- apply OFE.itrans
+ apply _root_.trans
  · apply H
    trivial
- apply OFE.irefl
+ apply refl
 
-
+end Later
 
 
 
@@ -1940,5 +1912,4 @@ instance : OFE SProp where
     · intro H
       subst H
       simp
--/
 -/
