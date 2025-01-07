@@ -851,20 +851,24 @@ lemma ccompose_nonexpansive [OFE α] [OFE β] [OFE γ] :
     apply H1
   apply refl
 
+
 /-- Composition in the category of COFE's is proper with respect to equivalence -/
 lemma eq_proper_ccompose [OFE α] [OFE β] [OFE γ] :
     is_proper2 rel rel rel (@NonExpansive.ccompose α β γ _ _ _) := by
   simp [NonExpansive.ccompose, DFunLike.coe]
   intros _ _ _ _ H1 H2 _
   -- FIXME: Setoid
+  simp [DFunLike.coe]
   apply _root_.trans
   · apply H1
-  sorry
-  -- #check nonexpansive_equiv_equiv_proper     -- ...what?
-  -- apply nonexpansive_equiv_equiv_proper
-  -- apply OFE.equiv_proper
-  -- · apply NonExpansive.unif_hom
-  -- apply H2
+  apply OFE.nonexpansive_equiv_equiv_proper
+  · apply @NonExpansive.is_nonexpansive
+  apply _root_.trans
+  · apply H2
+  apply OFE.nonexpansive_equiv_equiv_proper
+  · apply @NonExpansive.is_nonexpansive
+  apply refl
+
 
 
 lemma NonExpansive.map_nonexpansive [OFE A] [OFE B] [OFE A'] [OFE B'] :
