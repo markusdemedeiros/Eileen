@@ -1524,82 +1524,121 @@ section oFunctor
 -- 2. Try using the internal hom functor on OFE and precomposeing with COFE->OFE?
 
 
+-- A) Do we need this class
+-- B) Can we derive it?
+class COFECatMixin (A : OFECat) where
+  is_COFE : True
+
 
 
 /-- [bundled] COFE -> OFE bifunctor
 I think it's the internal hom functor???
 See: CategoryTheory.internalHom, this is mechanized for CCC categories
+
+NOTE: Iris defines COFE's by a typeclass on (bundled) OFE's. This means this
+construction WILL NOT use our bundled COFE category (at least directly).
+
+This formulation is not a Mathlib (bi)functor, because it doesn't assign an OFECat for every
+pair of OFE's.
+
+
 -/
 structure oFunctor where
   /-- Assignment to objects -/
-  car : COFECat -> COFECat -> OFECat
+  car [COFECatMixin A] [COFECatMixin B] : OFECat
 
   /-- Assignment to morphisms -/
-  map [COFE A] [COFE A'] [COFE B] [COFE B'] :
-    (prodO (A' -n> A) (B -n> B')) -> (car (COFE.of A) (COFE.of B) -n> car (COFE.of A') (COFE.of B'))
+  map [COFECatMixin A] [COFECatMixin A'] [COFECatMixin B] [COFECatMixin B'] :
+    (prodO (A' -n> A) (B -n> B')) -> ((@car A B _ _) -n> (@car A' B' _ _))
 
   /-- Bimap is nonexpansive (into the nonexpansive function space) -/
-  map_ne [COFE A] [COFE A'] [COFE B] [COFE B'] : nonexpansive (@map A A' B B' _ _ _ _)
+  map_ne [COFECatMixin A] [COFECatMixin A'] [COFECatMixin B] [COFECatMixin B'] :
+    nonexpansive (@map A A' B B' _ _ _ _)
 
   /-- Bimap is -/
-  map_id [COFE A] [COFE B] (x : car (COFE.of A) (COFE.of B)) :
+  map_id [COFECatMixin A] [COFECatMixin B] (x : @car A B _ _) :
     map (NonExpansive.cid, NonExpansive.cid) x ≈ NonExpansive.cid x
 
-  map_cmp [COFE A] [COFE A'] [COFE A''] [COFE B] [COFE B'] [COFE B'']
-      (f : A' -n> A) (g : A'' -n> A') (f' : B -n> B') (g' : B' -n> B'') x :
+  map_cmp [COFECatMixin A] [COFECatMixin A'] [COFECatMixin A''] [COFECatMixin B]
+    [COFECatMixin B'] [COFECatMixin B''] (f : A' -n> A) (g : A'' -n> A') (f' : B -n> B') (g' : B' -n> B'') x :
     map ((NonExpansive.ccompose f g), (NonExpansive.ccompose g' f')) x ≈ (map (g, g') (map (f, f') x))
 
 /-- Mixin: an oFunctor is contractive -/
 class oFunctorContractive (F : oFunctor) where
-  map_contractive [COFE A] [COFE A'] [COFE B] [COFE B'] :
-    contractive (@oFunctor.map F A A' B B' _ _ _ _)
+  map_contractive [COFECatMixin A] [COFECatMixin A'] [COFECatMixin B] [COFECatMixin B'] :
+    contractive (@oFunctor.map F A A' B B' _ _ _ _ )
 
 /-- Action of the oFunctor on objects -/
-def oFunctor.app (F : oFunctor) (a : COFECat) : OFECat := F.car a a
+def oFunctor.app (F : oFunctor) [COFECatMixin A] : OFECat := @F.car A A _ _
 
-
--- Can synthesize an OFE from an OFECat and a COFE from a COFECat
--- #synth OFE (_ : OFECat)
--- #synth COFE (_ : COFECat)
--- How do we specify that an OFECat is realy a COFE in a way that integrates with the hierarchy?
--- #synth COFE (_ : OFECat)
--- Does [∀ p1 p2, COFE (F2.car p1 p2)] work?
-
-/- The oFunctor F has carrier taking values in COFE  -/
-class oFunctor_car_COFE_mixin (F : oFunctor) where
-  car_COFE : ∀ {pA pB : COFECat}, COFE (F.car pA pB)
+-- -- Can synthesize an OFE from an OFECat and a COFE from a COFECat
+-- -- #synth OFE (_ : OFECat)
+-- -- #synth COFE (_ : COFECat)
+-- -- How do we specify that an OFECat is realy a COFE in a way that integrates with the hierarchy?
+-- -- #synth COFE (_ : OFECat)
+-- -- Does [∀ p1 p2, COFE (F2.car p1 p2)] work?
+--
+-- /- The oFunctor F has carrier taking values in COFE  -/
+-- class oFunctor_car_COFE_mixin (F : oFunctor) where
+--   car_COFE : ∀ {pA pB : COFECat}, COFE (F.car pA pB)
 
 -- instance coe_car_COFE_COFE (F : oFunctor) (A B : COFECat) (H : oFunctor_car_COFE F) :
 --     CoeOut (F.car A B) COFECat where
 --   coe := sorry
 
--- TODO: Can this coercion be made implicit/inferred from the typeclass?
-def coe_car_COFE_COFE (F : oFunctor) [oFunctor_car_COFE_mixin F] (A B : COFECat) : COFECat where
-  α := F.car A B
-  str := by apply oFunctor_car_COFE_mixin.car_COFE
+-- -- TODO: Can this coercion be made implicit/inferred from the typeclass?
+-- def coe_car_COFE_COFE (F : oFunctor) [oFunctor_car_COFE_mixin F] (A B : COFECat) : COFECat where
+--   α := F.car A B
+--   str := by apply oFunctor_car_COFE_mixin.car_COFE
 
 
-def oFunctor_cmp (F1 F2 : oFunctor) [oFunctor_car_COFE_mixin F2] : oFunctor where
-  car pA pB := F1.car (coe_car_COFE_COFE F2 pB pA) (coe_car_COFE_COFE F2 pA pB)
-  map m :=
-    let L1 := F2.map (m.2, m.1)
-    let L2 := F2.map (m.1, m.2)
-    let L3 := F1.map (L1, L2)
-    sorry
-
-    -- sorry
-
-    -- F1.map (prodC
-    --   (@NonExpansive.irrel _ _ _ _ _ _ L1 sorry)
-    --   sorry)
-    -- (by
-    --   dsimp
-    --   apply F1.map
-    --   · apply L1
-    --   · apply L2)
+-- TODO: HM -> Typeclass?
+def oFunctor_cmp (F1 F2 : oFunctor) [∀ A B HA HB, COFECatMixin (@F2.car A B HA HB)] : oFunctor where
+  car A B [COFECatMixin A] [COFECatMixin B] :=
+    @F1.car (@F2.car B A _ _) (@F2.car A B _ _) _ _
+  map m := F1.map (F2.map (m.2, m.1), F2.map (m.1, m.2))
   map_ne := sorry
   map_id := sorry
   map_cmp := sorry
+
+-- oFunctor_oFunctor_compose_contractive_1
+-- oFunctor_oFunctor_compose_contractive_2
+
+
+def oFunctor.constOF (B : OFECat) : oFunctor where
+  car := sorry
+  map := sorry
+  map_ne := sorry
+  map_id := sorry
+  map_cmp := sorry
+
+-- constOF_contractive
+
+def oFunctor.idOF : oFunctor where
+  car := sorry
+  map := sorry
+  map_ne := sorry
+  map_id := sorry
+  map_cmp := sorry
+
+
+def oFunctor.prodOF (F1 F2 : oFunctor) : oFunctor where
+  car := sorry
+  map := sorry
+  map_ne := sorry
+  map_id := sorry
+  map_cmp := sorry
+
+-- prodOF_contractive
+
+def oFunctor.morOF (F1 F2 : oFunctor) : oFunctor where
+  car := sorry
+  map := sorry
+  map_ne := sorry
+  map_id := sorry
+  map_cmp := sorry
+
+-- morOF_contractive
 
 
 end oFunctor
