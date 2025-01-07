@@ -1390,110 +1390,112 @@ def prodO (A B : Type) : Type := A × B
 -- instance [OFE A] [OFE B] : Coe (A × B) (prodO A B) where
 --   coe := sorry
 
-/-
 instance [OFE A] [OFE B] : OFE (prodO A B) where
-  irel n x y := (x.1 ≈[n] y.1) ∧ (x.2 ≈[n] y.2)
-  rel x y := (x.1 ≈ y.1) ∧ (x.2 ≈ y.2)
-  equivalence := by
+  ir n x y := (x.1 ≈[n] y.1) ∧ (x.2 ≈[n] y.2)
+  r x y := (x.1 ≈ y.1) ∧ (x.2 ≈ y.2)
+  iseqv := by
     apply Equivalence.mk
     · intro
-      simp only [Rel.rel]
       apply And.intro
-      · apply OFE.refl
-      · apply OFE.refl
+      · apply refl
+      · apply refl
     · simp
       intros
       apply And.intro
-      · apply OFE.symm
+      · apply symm
         trivial
-      · apply OFE.symm
+      · apply symm
         trivial
     · simp
       intros
       apply And.intro
-      · apply OFE.trans
+      · apply _root_.trans
         · trivial
         · trivial
-      · apply OFE.trans
+      · apply _root_.trans
         · trivial
         · trivial
-  equiv := by
-    intro n
-    apply Equivalence.mk
+  isieqv := by
+    apply IEquivalence.mk <;> intro n
     · intro
-      simp only [Rel.rel]
       apply And.intro
-      · apply OFE.irefl
-      · apply OFE.irefl
+      · apply refl
+      · apply refl
     · simp
       intros
       apply And.intro
-      · apply OFE.isymm
+      · apply symm
         trivial
-      · apply OFE.isymm
+      · apply symm
         trivial
     · simp
       intros
       apply And.intro
-      · apply OFE.itrans
+      · apply _root_.trans
         · trivial
         · trivial
-      · apply OFE.itrans
+      · apply _root_.trans
         · trivial
         · trivial
-  mono := by
+  mono_index := by
     simp
-    intros
+    intros _ _ _ _ _ H
+    cases H
     apply And.intro
-    · apply OFE.mono
+    · apply irel_mono
       · trivial
       · trivial
-    · apply OFE.mono
+    · apply irel_mono
       · trivial
       · trivial
-  limit := by
+  refines := by
     simp
     intros
     apply Iff.intro
     · intros
       rename_i H
       apply And.intro
-      · apply OFE.limit.mp
+      · apply rel_of_forall_irel
         intro n
         apply (H n).1
-      · apply OFE.limit.mp
+      · apply rel_of_forall_irel
         intro n
         apply (H n).2
-    · simp
-      intros
+    · intros H _
+      cases H
       apply And.intro
-      · apply OFE.limit.mpr
+      · apply forall_irel_of_rel
         trivial
-      · apply OFE.limit.mpr
+      · apply forall_irel_of_rel
         trivial
 
 lemma fst_nonexpansive [OFE A] [OFE B] : @nonexpansive (prodO A B) A _ _ Prod.fst := by
   simp [nonexpansive]
-  intros
+  intros _ _ _ H
+  cases H
   trivial
 
 lemma snd_nonexpansive [OFE A] [OFE B] : @nonexpansive (prodO A B) B _ _ Prod.snd := by
   simp [nonexpansive]
+  intros _ _ _ H
+  cases H
+  trivial
 
 instance [COFE A] [COFE B] : COFE (prodO A B) where
   lim c :=
-    (COFE.lim (Chain.cmap c fst_nonexpansive), COFE.lim (Chain.cmap c snd_nonexpansive))
-  complete := by
+    (COFE.lim (Chain.map c fst_nonexpansive), COFE.lim (Chain.map c snd_nonexpansive))
+  completeness := by
     simp
     intros
     apply And.intro
-    · apply COFE.complete
-    · apply COFE.complete
+    · apply COFE.completeness
+    · apply COFE.completeness
 
 instance [DiscreteOFE A] [DiscreteOFE B] : DiscreteOFE (prodO A B) where
   discrete := by
     simp
-    intros
+    intros _ _ H
+    cases H
     apply And.intro
     · apply DiscreteOFE.discrete
       trivial
@@ -1512,10 +1514,10 @@ abbrev prodC [OFE A] [OFE B] (a : A) (b : B) : prodO A B := (a, b)
 
 lemma prod_irel_iff [OFE A] [OFE B] (a a' : A) (b b' : B) (n : ℕ) :
     (prodC a b ≈[n] prodC a' b') <-> (a ≈[n] a') ∧  (b ≈[n] b') := by
-  simp
--/
+  sorry
 
 end Product
+
 
 
 
