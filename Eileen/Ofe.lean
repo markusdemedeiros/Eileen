@@ -1115,6 +1115,8 @@ instance : CategoryTheory.LargeCategory @COFECat :=
 instance : CategoryTheory.ConcreteCategory COFECat :=
   CategoryTheory.BundledHom.concreteCategory NonExpansive'
 
+-- #synth ∀ x : COFECat, COFE x
+
 end COFECat
 
 
@@ -1385,7 +1387,7 @@ section Product
 
 /-! ### Product OFE -/
 
-def prodO (A B : Type) : Type := A × B
+abbrev prodO (A B : Type) : Type := A × B
 
 -- instance [OFE A] [OFE B] : Coe (A × B) (prodO A B) where
 --   coe := sorry
@@ -1439,8 +1441,8 @@ instance [OFE A] [OFE B] : OFE (prodO A B) where
         · trivial
   mono_index := by
     simp
-    intros _ _ _ _ _ H
-    cases H
+    simp [irel]
+    intros
     apply And.intro
     · apply irel_mono
       · trivial
@@ -1469,17 +1471,13 @@ instance [OFE A] [OFE B] : OFE (prodO A B) where
       · apply forall_irel_of_rel
         trivial
 
-lemma fst_nonexpansive [OFE A] [OFE B] : @nonexpansive (prodO A B) A _ _ Prod.fst := by
-  simp [nonexpansive]
-  intros _ _ _ H
-  cases H
+lemma fst_nonexpansive [OFE A] [OFE B] : @nonexpansive (prodO A B) _ _ _ Prod.fst := by
+  simp [nonexpansive, irel, IRel.ir]
+  intros
   trivial
 
-lemma snd_nonexpansive [OFE A] [OFE B] : @nonexpansive (prodO A B) B _ _ Prod.snd := by
-  simp [nonexpansive]
-  intros _ _ _ H
-  cases H
-  trivial
+lemma snd_nonexpansive [OFE A] [OFE B] : @nonexpansive (prodO A B) _ _ _ Prod.snd := by
+  simp [nonexpansive, irel, IRel.ir]
 
 instance [COFE A] [COFE B] : COFE (prodO A B) where
   lim c :=
@@ -1493,9 +1491,8 @@ instance [COFE A] [COFE B] : COFE (prodO A B) where
 
 instance [DiscreteOFE A] [DiscreteOFE B] : DiscreteOFE (prodO A B) where
   discrete := by
-    simp
-    intros _ _ H
-    cases H
+    simp [irel, IRel.ir]
+    intros
     apply And.intro
     · apply DiscreteOFE.discrete
       trivial
@@ -1503,54 +1500,54 @@ instance [DiscreteOFE A] [DiscreteOFE B] : DiscreteOFE (prodO A B) where
       trivial
 
 
--- #synth OFE (prodO emptyO emptyO)
+-- #synth OFE (emptyO × emptyO)
+-- #check (((_ : emptyO), (_ : emptyO)) : prodO _ _)
 
--- FIXME: Fix this goofy type
--- Even if I delete this lemma it's silly to have to state it like this
--- Do I need a low-priority coercion instance or something?
--- TODO: Give a notation for this?
-
-abbrev prodC [OFE A] [OFE B] (a : A) (b : B) : prodO A B := (a, b)
-
-lemma prod_irel_iff [OFE A] [OFE B] (a a' : A) (b b' : B) (n : ℕ) :
-    (prodC a b ≈[n] prodC a' b') <-> (a ≈[n] a') ∧  (b ≈[n] b') := by
-  sorry
+-- abbrev prodC [OFE A] [OFE B] (a : A) (b : B) : prodO A B := (a, b)
+--
+-- lemma prod_irel_iff [OFE A] [OFE B] (a a' : A) (b b' : B) (n : ℕ) :
+--     (prodC a b ≈[n] prodC a' b') <-> (a ≈[n] a') ∧  (b ≈[n] b') := by
+--   sorry
 
 end Product
 
 
 
 
-
-
-
-
 section oFunctor
--- TODO: This section is super broken
 
--- def test [COFE A] [COFE A'] [COFE B] [COFE B']
---   (f : A -n> A') (g : B -n> B') : (prodO A B) -n> (prodO A' B') where
---      toFun := sorry
---      unif_hom := sorry
+/-! ## oFunctors (OFE -> COFE functors) -/
 
-/-
-## oFunctors (OFE -> COFE functors)
+-- TODO: Two different things.
+
+-- 1. The Iris way. COFE is a typeclass on the BUNDLED OFE (i.e., ofe -> Type)
+-- 2. Try using the internal hom functor on OFE and precomposeing with COFE->OFE?
+
+
+
+
+/-- [bundled] COFE -> OFE bifunctor
+I think it's the internal hom functor???
+See: CategoryTheory.internalHom, this is mechanized for CCC categories
 -/
-
--- TODO: I wonder if this could be written as an actual (bi)functor between categories?
--- The Hom functor does exist in Mathlib
--- NOTE: No hierarchy. Do we need it?
-/-
-/-- [bundled] COFE -> OFE bifunctor -/
 structure oFunctor where
-  car : COFECat × COFECat -> OFECat
+  /-- Assignment to objects -/
+  car : COFECat -> COFECat -> OFECat
+
+  /-- Assignment to morphisms -/
   map [COFE A] [COFE A'] [COFE B] [COFE B'] :
-    (prodO (A' -n> A) (B -n> B')) -> (car (COFE.of A, COFE.of B) -n> car (COFE.of A', COFE.of B'))
+    (prodO (A' -n> A) (B -n> B')) -> (car (COFE.of A) (COFE.of B) -n> car (COFE.of A') (COFE.of B'))
+
+  /-- Bimap is nonexpansive (into the nonexpansive function space) -/
   map_ne [COFE A] [COFE A'] [COFE B] [COFE B'] : nonexpansive (@map A A' B B' _ _ _ _)
-  map_id [COFE A] [COFE B] (x : car (COFE.of A, COFE.of B)) : map (prodC cid cid) x ≈ cid x
+
+  /-- Bimap is -/
+  map_id [COFE A] [COFE B] (x : car (COFE.of A) (COFE.of B)) :
+    map (NonExpansive.cid, NonExpansive.cid) x ≈ NonExpansive.cid x
+
   map_cmp [COFE A] [COFE A'] [COFE A''] [COFE B] [COFE B'] [COFE B'']
       (f : A' -n> A) (g : A'' -n> A') (f' : B -n> B') (g' : B' -n> B'') x :
-    map (prodC (ccompose f g) (ccompose g' f')) x ≈ (map (prodC g g') (map (prodC f f') x))
+    map ((NonExpansive.ccompose f g), (NonExpansive.ccompose g' f')) x ≈ (map (g, g') (map (f, f') x))
 
 /-- Mixin: an oFunctor is contractive -/
 class oFunctorContractive (F : oFunctor) where
@@ -1558,50 +1555,51 @@ class oFunctorContractive (F : oFunctor) where
     contractive (@oFunctor.map F A A' B B' _ _ _ _)
 
 /-- Action of the oFunctor on objects -/
-def oFunctor.app (F : oFunctor) (a : COFECat) : OFECat := F.car (a, a)
--/
-
--- def NonExpansive.irrel [M1 : OFE M] [M2 : OFE M] [N1 : OFE N] [N2 : OFE N]
---     (NE1 : @NonExpansive M N M1 N1)
---     (HIRel : @OFE.toIRel M M2 = @OFE.toIRel M M1) : @NonExpansive M N M2 N2 where
---   toFun := @NE1.toFun
---   unif_hom := by
---     simp [nonexpansive]
---     intros n x y H
---     rewrite [HIRel] at H
---     let X := @NE1.unif_hom n x  y
---     sorry
+def oFunctor.app (F : oFunctor) (a : COFECat) : OFECat := F.car a a
 
 
--- def OFECat_is_COFE (a : OFECat) : Prop := sorry
--- /-
--- An oFunctor which only sends objects to COFEs
--- -/
--- class oFunctorCOFE (F : oFunctor) where
---   coe : OFECat -> COFECat
---   coe_id [COFE A] [COFE A'] [COFE B] [COFE B'] (m : prodO (A' -n> A) (B -n> B')):
---     ∀ p, OFECat_is_COFE (F.map m p)
+-- Can synthesize an OFE from an OFECat and a COFE from a COFECat
+-- #synth OFE (_ : OFECat)
+-- #synth COFE (_ : COFECat)
+-- How do we specify that an OFECat is realy a COFE in a way that integrates with the hierarchy?
+-- #synth COFE (_ : OFECat)
+-- Does [∀ p1 p2, COFE (F2.car p1 p2)] work?
+
+/- The oFunctor F has carrier taking values in COFE  -/
+class oFunctor_car_COFE_mixin (F : oFunctor) where
+  car_COFE : ∀ {pA pB : COFECat}, COFE (F.car pA pB)
+
+-- instance coe_car_COFE_COFE (F : oFunctor) (A B : COFECat) (H : oFunctor_car_COFE F) :
+--     CoeOut (F.car A B) COFECat where
+--   coe := sorry
+
+-- TODO: Can this coercion be made implicit/inferred from the typeclass?
+def coe_car_COFE_COFE (F : oFunctor) [oFunctor_car_COFE_mixin F] (A B : COFECat) : COFECat where
+  α := F.car A B
+  str := by apply oFunctor_car_COFE_mixin.car_COFE
 
 
--- TODO: We can only compose oFunctors whose range is all COFE's
+def oFunctor_cmp (F1 F2 : oFunctor) [oFunctor_car_COFE_mixin F2] : oFunctor where
+  car pA pB := F1.car (coe_car_COFE_COFE F2 pB pA) (coe_car_COFE_COFE F2 pA pB)
+  map m :=
+    let L1 := F2.map (m.2, m.1)
+    let L2 := F2.map (m.1, m.2)
+    let L3 := F1.map (L1, L2)
+    sorry
 
+    -- sorry
 
--- def oFunctor_cmp (F1 F2 : oFunctor) [∀ p, COFE (F2.car p)] : oFunctor where
---   car p := F1.car (COFE.of (F2.car (p.2, p.1)), COFE.of (F2.car (p.1, p.2)))
---   map m :=
---     let L1 := F2.map (m.2, m.1)
---     let L2 := F2.map (m.1, m.2)
---     F1.map (prodC
---       (@NonExpansive.irrel _ _ _ _ _ _ L1 sorry)
---       sorry)
---     -- (by
---     --   dsimp
---     --   apply F1.map
---     --   · apply L1
---     --   · apply L2)
---   map_ne := sorry
---   map_id := sorry
---   map_cmp := sorry
+    -- F1.map (prodC
+    --   (@NonExpansive.irrel _ _ _ _ _ _ L1 sorry)
+    --   sorry)
+    -- (by
+    --   dsimp
+    --   apply F1.map
+    --   · apply L1
+    --   · apply L2)
+  map_ne := sorry
+  map_id := sorry
+  map_cmp := sorry
 
 
 end oFunctor
