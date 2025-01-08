@@ -1518,13 +1518,12 @@ section oFunctor
 
 /-! ## oFunctors (OFE -> COFE functors) -/
 
--- TODO: Two different things.
+-- TODO: Two different approaches are feasible
 
 -- 1. The Iris way. COFE is a typeclass on the BUNDLED OFE (i.e., ofe -> Type)
 -- 2. Try using the internal hom functor on OFE and precomposeing with COFE->OFE?
 
-
--- A) Do we need this class
+-- A) Do we need this class? Answer: We need some way to specify that a bundled OFE is a COFE.
 -- B) Can we derive it?
 class COFECatMixin (A : OFECat) where
   is_COFE : True
@@ -1555,10 +1554,11 @@ structure oFunctor where
   map_ne [COFECatMixin A] [COFECatMixin A'] [COFECatMixin B] [COFECatMixin B'] :
     nonexpansive (@map A A' B B' _ _ _ _)
 
-  /-- Bimap is -/
+  /-- Bimap assigns identity morphisms in (C)OFE^op * (C)OFE to the identity in OFE -/
   map_id [COFECatMixin A] [COFECatMixin B] (x : @car A B _ _) :
     map (NonExpansive.cid, NonExpansive.cid) x ≈ NonExpansive.cid x
 
+  /-- Bifunctoriality -/
   map_cmp [COFECatMixin A] [COFECatMixin A'] [COFECatMixin A''] [COFECatMixin B]
     [COFECatMixin B'] [COFECatMixin B''] (f : A' -n> A) (g : A'' -n> A') (f' : B -n> B') (g' : B' -n> B'') x :
     map ((NonExpansive.ccompose f g), (NonExpansive.ccompose g' f')) x ≈ (map (g, g') (map (f, f') x))
@@ -1591,52 +1591,103 @@ def oFunctor.app (F : oFunctor) [COFECatMixin A] : OFECat := @F.car A A _ _
 --   α := F.car A B
 --   str := by apply oFunctor_car_COFE_mixin.car_COFE
 
+-- TODO: oFunctorContractive
+
+
 
 -- TODO: HM -> Typeclass?
 def oFunctor_cmp (F1 F2 : oFunctor) [∀ A B HA HB, COFECatMixin (@F2.car A B HA HB)] : oFunctor where
   car A B [COFECatMixin A] [COFECatMixin B] :=
     @F1.car (@F2.car B A _ _) (@F2.car A B _ _) _ _
   map m := F1.map (F2.map (m.2, m.1), F2.map (m.1, m.2))
-  map_ne := sorry
-  map_id := sorry
-  map_cmp := sorry
+  map_ne := by
+    intro _ _ _ _ _ _ _ _ i x y H
+    simp only [Prod.mk.eta]
+    apply F1.map_ne
+    simp [irel, IRel.ir, DFunLike.coe]
+    apply And.intro
+    · intro _
+      apply F2.map_ne
+      simp_all [irel, IRel.ir, DFunLike.coe]
+    · intro _
+      apply F2.map_ne
+      simp_all [irel, IRel.ir, DFunLike.coe]
+  map_id := by
+    simp_all [DFunLike.coe]
+    intro A B _ _ x
+    apply _root_.trans _ ?G2
+    case G2 =>
+      apply @oFunctor.map_id F1 _ _ _ _ x
+    simp [DFunLike.coe]
+    apply rel_of_forall_irel
+    intro n
+    apply F1.map_ne
+    simp [irel, IRel.ir, DFunLike.coe]
+    apply And.intro
+    · intro _
+      apply forall_irel_of_rel
+      apply F2.map_id
+    · intro _
+      apply forall_irel_of_rel
+      apply F2.map_id
+  map_cmp := by
+    -- WIP,
+    sorry
+    -- simp_all [DFunLike.coe]
+    -- intro A A' A'' B B' B'' _ _ _ _ _ _ f g f' g' x
+    -- -- apply _root_.trans
+    -- -- · have X := @oFunctor.map_cmp F1 A A' A'' B B' B'' _ _ _ _ _ _ f g f' g'
+    -- --   simp_all [DFunLike.coe]
+    -- --   apply F1.map_ne
+    -- --   sorry
+    -- apply rel_of_forall_irel
+    -- intro n
+    -- apply _root_.trans
+    -- · apply F1.map_ne
+    --   apply symm
+    --   have X := @F2.map_cmp A A' A'' B B' B'' _ _ _ _ _ _ f g f' g'
+    --   simp [DFunLike.coe] at X
+    --
+    --   all_goals sorry
+    -- apply forall_irel_of_rel
 
 -- oFunctor_oFunctor_compose_contractive_1
 -- oFunctor_oFunctor_compose_contractive_2
 
 
 def oFunctor.constOF (B : OFECat) : oFunctor where
-  car := sorry
-  map := sorry
-  map_ne := sorry
-  map_id := sorry
-  map_cmp := sorry
-
--- constOF_contractive
+  car := B
+  map f := NonExpansive.cid
+  map_ne := by simp [refl]
+  map_id := by simp [refl]
+  map_cmp := by simp [refl, NonExpansive.cid, DFunLike.coe]
 
 def oFunctor.idOF : oFunctor where
-  car := sorry
-  map := sorry
-  map_ne := sorry
-  map_id := sorry
-  map_cmp := sorry
+  car := @fun _ B => B
+  map := @fun _ _ _ _ _ _ _ _ f => f.2
+  map_ne := by simp [refl, irel, IRel.ir, DFunLike.coe]
+  map_id := by simp [refl, irel, IRel.ir, DFunLike.coe]
+  map_cmp := by
+    simp [DFunLike.coe]
+    intros
+    apply refl
 
-
-def oFunctor.prodOF (F1 F2 : oFunctor) : oFunctor where
-  car := sorry
-  map := sorry
-  map_ne := sorry
-  map_id := sorry
-  map_cmp := sorry
+--  TODO
+-- def oFunctor.prodOF (F1 F2 : oFunctor) : oFunctor where
+--   car := sorry
+--   map := sorry
+--   map_ne := sorry
+--   map_id := sorry
+--   map_cmp := sorry
 
 -- prodOF_contractive
 
-def oFunctor.morOF (F1 F2 : oFunctor) : oFunctor where
-  car := sorry
-  map := sorry
-  map_ne := sorry
-  map_id := sorry
-  map_cmp := sorry
+-- def oFunctor.morOF (F1 F2 : oFunctor) : oFunctor where
+--   car := sorry
+--   map := sorry
+--   map_ne := sorry
+--   map_id := sorry
+--   map_cmp := sorry
 
 -- morOF_contractive
 
