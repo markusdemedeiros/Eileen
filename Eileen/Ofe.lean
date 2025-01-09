@@ -1,6 +1,7 @@
 /-
 Authors: Markus de Medeiros
 -/
+import Mathlib.CategoryTheory.ChosenFiniteProducts
 import Mathlib.CategoryTheory.Category.Basic
 import Mathlib.Data.FunLike.Basic
 import Mathlib.CategoryTheory.ConcreteCategory.Bundled
@@ -175,7 +176,10 @@ lemma irel_le_mono {T : Sort*} [IRelMono T] : ∀ {m n}, ∀ {x y : T}, m ≤ n 
     trivial
 
 lemma irel_mono_le {T : Sort*} [IRelMono T] : ∀ {m n}, ∀ {x y : T}, x ≈[n] y -> m ≤ n -> x ≈[m] y := by
-  intros; apply irel_le_mono <;> trivial
+  intros
+  rename_i H
+  apply irel_le_mono H
+  trivial
 
 /-- An indexed relation is an indexed refinement of an equivalence relation -/
 class IRelLimit extends Rel T, IRel T where
@@ -651,6 +655,9 @@ instance : CategoryTheory.LargeCategory @OFECat :=
 /-- The category of OFE's and nonexpansive functions -/
 instance : CategoryTheory.ConcreteCategory OFECat :=
   CategoryTheory.BundledHom.concreteCategory NonExpansive
+
+-- #check CategoryTheory.ChosenFiniteProducts
+
 
 
 
