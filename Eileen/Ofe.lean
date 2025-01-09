@@ -1,6 +1,8 @@
 /-
 Authors: Markus de Medeiros
 -/
+import Mathlib.CategoryTheory.Limits.Shapes.FiniteProducts
+import Mathlib.CategoryTheory.Closed.Cartesian
 import Mathlib.CategoryTheory.ChosenFiniteProducts
 import Mathlib.CategoryTheory.Category.Basic
 import Mathlib.Data.FunLike.Basic
@@ -648,6 +650,11 @@ instance : CategoryTheory.BundledHom @NonExpansive where
     simp only [DFunLike.coe]
     rfl
 
+-- TODO: Coercion?
+def OFECat.ofHom [OFE A] [OFE B] (f : A -> B) [H : HasNonExpansive f] : Quiver.Hom A B :=
+  NonExpansive.mk f (H.is_nonexpansive)
+
+
 /-- The category of OFE's and nonexpansive functions -/
 instance : CategoryTheory.LargeCategory @OFECat :=
   CategoryTheory.BundledHom.category @NonExpansive
@@ -655,10 +662,6 @@ instance : CategoryTheory.LargeCategory @OFECat :=
 /-- The category of OFE's and nonexpansive functions -/
 instance : CategoryTheory.ConcreteCategory OFECat :=
   CategoryTheory.BundledHom.concreteCategory NonExpansive
-
--- #check CategoryTheory.ChosenFiniteProducts
-
-
 
 
 
@@ -1486,6 +1489,15 @@ lemma fst_nonexpansive [OFE A] [OFE B] : @nonexpansive (prodO A B) _ _ _ Prod.fs
 lemma snd_nonexpansive [OFE A] [OFE B] : @nonexpansive (prodO A B) _ _ _ Prod.snd := by
   simp [nonexpansive, irel, IRel.ir]
 
+
+instance [OFE A] [OFE B] : @HasNonExpansive (prodO A B) A _ _ _ _ Prod.fst where
+  is_nonexpansive := fst_nonexpansive
+
+instance [OFE A] [OFE B] : @HasNonExpansive (prodO A B) B _ _ _ _ Prod.snd where
+  is_nonexpansive := snd_nonexpansive
+
+
+
 instance [COFE A] [COFE B] : COFE (prodO A B) where
   lim c :=
     (COFE.lim (Chain.map c fst_nonexpansive), COFE.lim (Chain.map c snd_nonexpansive))
@@ -1506,6 +1518,42 @@ instance [DiscreteOFE A] [DiscreteOFE B] : DiscreteOFE (prodO A B) where
     · apply DiscreteOFE.discrete
       trivial
 
+def Product.functor_prod {A B C : Type} [OFE A] [OFE B] [OFE C]
+    (f : (A -n> B)) (g : (A -n> C)) : (A -n> (prodO B C)) where
+  toFun a := (f a, g a)
+  is_nonexpansive := by
+    simp [nonexpansive]
+    intros
+    apply And.intro <;>
+    apply HasNonExpansive.is_nonexpansive <;>
+    trivial
+
+-- TODO: Derive from more general case
+def Product.functor_prod' {A B C : Type} [OFE A] [OFE B] [OFE C]
+    (fg : (prodO (A -n> B) (A -n> C))) : (A -n> (prodO B C)) :=
+  NonExpansive.mk (fun a => (fg.1 a, fg.2 a)) <| by
+    simp [nonexpansive]
+    intros
+    apply And.intro <;>
+    apply HasNonExpansive.is_nonexpansive <;>
+    trivial
+
+lemma Product.functor_prod'_nonexpansive [OFE A] [OFE B] [OFE C] :
+    nonexpansive (@Product.functor_prod' A B C _ _ _) := by
+  simp [nonexpansive, functor_prod']
+  intros
+  rename_i H
+  simp [irel, IRel.ir] at H
+  rcases H with ⟨ H1, H2 ⟩
+  intro a
+  simp [DFunLike.coe]
+  apply And.intro <;> simp
+  · apply H1
+  · apply H2
+
+
+-- def Product.prod' {A B C : Type*} [OFE A] [OFE B] [OFE C] : (prodO (A -n> B) (A -n> C)) -n> (A -n> (prodO B C)) where
+
 
 -- #synth OFE (emptyO × emptyO)
 -- #check (((_ : emptyO), (_ : emptyO)) : prodO _ _)
@@ -1518,6 +1566,107 @@ instance [DiscreteOFE A] [DiscreteOFE B] : DiscreteOFE (prodO A B) where
 
 end Product
 
+
+
+section oFunctorCat
+
+/-! ### (Experiment) Define oFunctors using mathlib's existing categorical definitions
+
+This section mimics the pattern in Mathlib/CategoryTheory/ChosenFiniteProducts/Cat.lean
+since the construction is very similar.
+-/
+
+-- TODO: There should be a way to lift morphisms
+def OFECat.Fst (C D : OFECat) : (Quiver.Hom (OFE.of (C × D)) C) :=
+  -- OFECat.ofHom Prod.fst -- TODO: Need to fix coercions for the inference from HasNonExpansive to work, probably?
+  NonExpansive.mk Prod.fst fst_nonexpansive
+
+def OFECat.Snd (C D : OFECat) : (Quiver.Hom (OFE.of (C × D)) D) :=
+  NonExpansive.mk Prod.snd snd_nonexpansive
+
+def OFEProdCone (C D : OFECat) : CategoryTheory.Limits.BinaryFan C D :=
+  .mk (P := .of (C × D))
+    (OFECat.Fst C D)
+    (OFECat.Snd C D)
+
+def isLimitProdCone (X Y : OFECat) : CategoryTheory.Limits.IsLimit (OFEProdCone X Y) :=
+  CategoryTheory.Limits.BinaryFan.isLimitMk
+     (fun S => Product.functor_prod S.fst S.snd)
+     (by intros; congr)
+     (by intros; congr)
+     (by
+       simp
+       intros _ _ H1 H2
+       rw [<- H1, <- H2]
+       congr)
+
+abbrev OFE.terminal : OFECat := OFE.of unitO
+
+def OFETerminalIsTerminal : CategoryTheory.Limits.IsTerminal OFE.terminal :=
+  CategoryTheory.Limits.IsTerminal.ofUniqueHom
+    (fun _ => NonExpansive.cconst Unit.unit)
+    (by intros; congr)
+
+instance : CategoryTheory.ChosenFiniteProducts OFECat where
+  product X Y := { isLimit := isLimitProdCone X Y }
+  terminal := { isLimit := OFETerminalIsTerminal }
+
+-- #synth CategoryTheory.Limits.HasFiniteProducts OFECat
+
+-- TODO: Cleanup
+def OFEClosedCat.exponentiate (A : OFECat) : CategoryTheory.Functor OFECat OFECat where
+  obj Y := OFE.of (A -n> Y)
+  map := fun {X Y} f =>
+    NonExpansive.mk (fun F =>
+      (@NonExpansive.ccompose A X Y _ _ _
+              (NonExpansive.mk f.toFun <| by apply NonExpansive.is_nonexpansive)
+              (NonExpansive.mk F.toFun <| by apply NonExpansive.is_nonexpansive))) <|
+      by
+        simp [nonexpansive, NonExpansive.ccompose, DFunLike.coe, irel, IRel.ir]
+        intros
+        intro _
+        simp [nonexpansive, NonExpansive.ccompose, DFunLike.coe, irel, IRel.ir]
+        apply NonExpansive.is_nonexpansive
+        rename_i H x
+        have H' := H x
+        simp_all [DFunLike.coe]
+
+def NonExpansive.curry [OFE A] [OFE B] [OFE C] (f : (prodO A B) -n> C) : B -n> (A -n> C) := sorry
+def NonExpansive.uncurry [OFE A] [OFE B] [OFE C] (f : B -n> (A -n> C)) : (prodO A B) -n> C := sorry
+
+def NonExpansive.curry_uncurry [OFE A] [OFE B] [OFE C] :
+    Function.LeftInverse (@NonExpansive.uncurry A B C _ _ _) (@NonExpansive.curry A B C  _ _ _) := sorry
+
+def NonExpansive.uncurry_curry [OFE A] [OFE B] [OFE C] :
+    Function.RightInverse (@NonExpansive.uncurry A B C _ _ _) (@NonExpansive.curry A B C  _ _ _) := sorry
+
+
+-- #check CategoryTheory.Adjunction.mkOfHomEquiv
+-- #check CategoryTheory.Adjunction.CoreHomEquiv.mk
+def OFECatClosed (X : OFECat) : CategoryTheory.Closed X where
+  rightAdj := OFEClosedCat.exponentiate X
+  adj := CategoryTheory.Adjunction.mkOfHomEquiv {
+           homEquiv Z Y := Equiv.mk
+                              NonExpansive.curry
+                              NonExpansive.uncurry
+                              NonExpansive.curry_uncurry
+                              NonExpansive.uncurry_curry
+           homEquiv_naturality_left_symm := sorry
+           homEquiv_naturality_right := sorry
+           }
+
+instance : CategoryTheory.CartesianClosed OFECat where
+  closed := OFECatClosed
+
+/-- A functor OFE^op × OFE -> OFE
+
+Note that Iris oFunctor is from COFE^op x COFE -> OFE
+Define this by precomposing w/ COFE^op x COFE -> OFE^op x OFE inclusion bifunctor?
+-/
+def oFunctor' := @CategoryTheory.internalHom OFECat _ _ _
+
+
+end oFunctorCat
 
 
 
