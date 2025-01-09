@@ -1631,29 +1631,68 @@ def OFEClosedCat.exponentiate (A : OFECat) : CategoryTheory.Functor OFECat OFECa
         have H' := H x
         simp_all [DFunLike.coe]
 
-def NonExpansive.curry [OFE A] [OFE B] [OFE C] (f : (prodO A B) -n> C) : B -n> (A -n> C) := sorry
-def NonExpansive.uncurry [OFE A] [OFE B] [OFE C] (f : B -n> (A -n> C)) : (prodO A B) -n> C := sorry
+def NonExpansive.curry [OFE A] [OFE B] [OFE C] (f : (prodO A B) -n> C) : B -n> (A -n> C) :=
+  NonExpansive.mk (fun b => NonExpansive.mk (fun a => f (a, b))
+      (by
+        simp [nonexpansive]
+        intros
+        apply NonExpansive.is_nonexpansive
+        simp [irel, IRel.ir]
+        apply And.intro
+        · trivial
+        · apply refl))
+    (by
+      simp [nonexpansive]
+      intros
+      intro _
+      simp [DFunLike.coe]
+      apply NonExpansive.is_nonexpansive
+      simp [irel, IRel.ir]
+      apply And.intro
+      · apply refl
+      · trivial)
+
+def NonExpansive.uncurry [OFE A] [OFE B] [OFE C] (f : B -n> (A -n> C)) : (prodO A B) -n> C :=
+  NonExpansive.mk (fun p => f (Prod.snd p) (Prod.fst p)) <|
+    by
+      simp [nonexpansive]
+      intros
+      simp [DFunLike.coe]
+      rcases f with ⟨ f, Hf ⟩
+      simp
+      rename_i H
+      rcases H with ⟨ H1, H2 ⟩
+      simp_all
+      apply _root_.trans
+      · apply NonExpansive.is_nonexpansive
+        apply H1
+      apply _root_.trans
+      · apply Hf
+        apply H2
+      apply refl
 
 def NonExpansive.curry_uncurry [OFE A] [OFE B] [OFE C] :
-    Function.LeftInverse (@NonExpansive.uncurry A B C _ _ _) (@NonExpansive.curry A B C  _ _ _) := sorry
+    Function.LeftInverse (@NonExpansive.uncurry A B C _ _ _) (@NonExpansive.curry A B C  _ _ _) := by
+  aesop_cat
 
 def NonExpansive.uncurry_curry [OFE A] [OFE B] [OFE C] :
-    Function.RightInverse (@NonExpansive.uncurry A B C _ _ _) (@NonExpansive.curry A B C  _ _ _) := sorry
+    Function.RightInverse (@NonExpansive.uncurry A B C _ _ _) (@NonExpansive.curry A B C  _ _ _) := by
+  aesop_cat
 
+def OFECatEqv (X Z Y : OFECat) :
+    ((CategoryTheory.MonoidalCategory.tensorLeft X).obj Z ⟶ Y) ≃ (Z ⟶ (OFEClosedCat.exponentiate X).obj Y) where
+  toFun := NonExpansive.curry
+  invFun := NonExpansive.uncurry
+  left_inv := NonExpansive.curry_uncurry
+  right_inv := NonExpansive.uncurry_curry
 
--- #check CategoryTheory.Adjunction.mkOfHomEquiv
--- #check CategoryTheory.Adjunction.CoreHomEquiv.mk
+def OFECatCoreHomEquiv (X : OFECat) :
+    CategoryTheory.Adjunction.CoreHomEquiv (CategoryTheory.MonoidalCategory.tensorLeft X) (OFEClosedCat.exponentiate X) where
+  homEquiv Z Y := @OFECatEqv X Z Y
+
 def OFECatClosed (X : OFECat) : CategoryTheory.Closed X where
   rightAdj := OFEClosedCat.exponentiate X
-  adj := CategoryTheory.Adjunction.mkOfHomEquiv {
-           homEquiv Z Y := Equiv.mk
-                              NonExpansive.curry
-                              NonExpansive.uncurry
-                              NonExpansive.curry_uncurry
-                              NonExpansive.uncurry_curry
-           homEquiv_naturality_left_symm := sorry
-           homEquiv_naturality_right := sorry
-           }
+  adj := CategoryTheory.Adjunction.mkOfHomEquiv (OFECatCoreHomEquiv X)
 
 instance : CategoryTheory.CartesianClosed OFECat where
   closed := OFECatClosed
@@ -1664,6 +1703,8 @@ Note that Iris oFunctor is from COFE^op x COFE -> OFE
 Define this by precomposing w/ COFE^op x COFE -> OFE^op x OFE inclusion bifunctor?
 -/
 def oFunctor' := @CategoryTheory.internalHom OFECat _ _ _
+
+
 
 
 end oFunctorCat
