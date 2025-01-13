@@ -1357,17 +1357,12 @@ instance : CategoryTheory.LargeCategory COFECat where
 lemma forget_obj {R : COFECat} : CategoryTheory.ConcreteCategory.forget.obj R = R := by
   rfl
 
+instance {R : OFECat} : OFE (CategoryTheory.ConcreteCategory.forget.obj R) :=
+  (inferInstance : OFE R.α)
+
 -- lemma forget_map {R S : OFECat} (f : R ⟶ S) :
 --     CategoryTheory.ConcreteCategory.forget.map f = f := by
 --   rfl
---
--- instance {R : OFECat} : OFE (CategoryTheory.ConcreteCategory.forget.obj R) :=
---   (inferInstance : OFE R.carrier)
-
--- -- TODO: Coercion?
--- def OFECat.ofHom [OFE A] [OFE B] (f : A -> B) [H : HasNonExpansive f] : Quiver.Hom A B :=
---   sorry
---   -- NonExpansive.mk f (H.is_nonexpansive)
 
 end COFECat
 end COFEBundled
