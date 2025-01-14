@@ -18,6 +18,7 @@ The main mechanized results so far:
 	- discreteO, laterO, leibnizO, prodO
 - Bundled (C)OFE:
 	- The category of (C)OFE and nonexpansive maps
+        - The category OFE is cartesian closed
 	- A definition for oFunctor
 - Fixpoint of contractive maps
 
