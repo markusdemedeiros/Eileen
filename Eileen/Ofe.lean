@@ -1365,11 +1365,16 @@ instance {R : OFECat} : OFE (CategoryTheory.ConcreteCategory.forget.obj R) :=
 --     CategoryTheory.ConcreteCategory.forget.map f = f := by
 --   rfl
 
+
 end COFECat
 end COFEBundled
 
-
-
+def OFECat.toOFE : CategoryTheory.Functor COFECat OFECat where
+  obj X := ⟨ X.1, by infer_instance ⟩
+  map f := ⟨ f,
+             by
+               rcases f with ⟨ f, H ⟩
+               apply H ⟩
 
 section Contractive
 
@@ -1808,23 +1813,6 @@ lemma Product.functor_prod'_nonexpansive [OFE A] [OFE B] [OFE C] :
 end Product
 
 
-section qOFE
-
-/-! ### Category of OFE's and nonexpansive maps, up to equivalence -/
-
-/-- Two nonexpansive functions send the same element to equivalent elements -/
-def qOFE_hom_equivalent [OFE A] [OFE B] (f g : A -n> B) : Prop :=
-  ∀ x : A, f x ≈ g x
-
-def qOFE_HomRel : HomRel OFECat := fun _ _ f g => qOFE_hom_equivalent f.hom g.hom
-
-/-- The category of OFE's and functions between them which are free to differ by equivalence -/
-abbrev qOFE := CategoryTheory.Quotient qOFE_HomRel
-
--- #synth CategoryTheory.Category qOFE
-
-end qOFE
-
 
 
 section OFECatCCC
@@ -1953,54 +1941,8 @@ instance : CategoryTheory.CartesianClosed OFECat where
 end OFECatCCC
 
 
-section oFunctorCat
-
-/-! ### oFunctors, defined categorically -/
-
-
-/-- The data of an oFunctor, namely, a bifunctor from COFECatᵒᵖ × COFECat to
-  OFE where the functorial equalities only need to hold up to equivalence ``≈``
-  in the target OFE. -/
-abbrev oFunctor' := CategoryTheory.Functor (COFECatᵒᵖ × COFECat) qOFE
-
-
-
--- TODO: Unroll the functor equalities
-
-variable (f : oFunctor')
-variable (A B : COFECatᵒᵖ × COFECat)
--- #check A.1.unop.α
--- #synth COFE A.1.unop.α
-variable (x : A ⟶ B)
-#check (f.map x)
-
-
--- class oFunctor (F : oFunctor') where
-
--- An oFunctor is one of these things where the map function is nonexpansive, when viewed
--- as a function into the product space.
--- Figure out a better way to write that requirement (unfold defs).
-def test (f : oFunctor') (X Y : COFECatᵒᵖ × COFECat) :
-    (prodO (Y.1.unop.α -n> X.1.unop.α) (X.2.α -n> Y.2.α)) -> (emptyO -n> emptyO) :=
-  sorry
-
--- An oFunctorContractive is an oFunctor where that map is actually contractive.
-
--- A oFunctorCmp is an oFunctor into qCOFE, rather than qOFE.
--- oFunctorCmps can be composed.
-
-end oFunctorCat
-
-
-
-
-
-
-
 
 section oFunctor
-
-
 
 
 /-
