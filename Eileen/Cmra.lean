@@ -6,6 +6,7 @@ Based on https://gitlab.mpi-sws.org/adamAndMath/iris/tree/fossacs-2025?ref_type=
 
 import Eileen.Ofe
 import Mathlib.Algebra.Group.Defs
+import Mathlib.Data.Nat.Defs
 
 abbrev Pred (T : Sort*) :=
   T -> Prop
@@ -211,24 +212,3 @@ end CMRAUnbundled
 
 -- CMRA Hierarchy
 
-
-
-section CMRABundled
-/-! ### The category of CMRAs plus Camera morphisms -/
-
-/-- Objects in the category of CMRA's -/
-def CMRACat := CategoryTheory.Bundled CMRA
-
-instance : CoeSort CMRACat Type where
-  coe := CategoryTheory.Bundled.α
-
--- attribute [coe] CategoryTheory.Bundled.α
--- attribute [instance] CategoryTheory.Bundled.str
-
-namespace CMRACat
-
--- TODO: Camera morphisms, and the category CMRA
-
-end CMRACat
-
-end CMRABundled

@@ -1,19 +1,8 @@
 /-
 Authors: Markus de Medeiros
 -/
-import Mathlib.CategoryTheory.Limits.Shapes.FiniteProducts
-import Mathlib.CategoryTheory.Closed.Cartesian
-import Mathlib.CategoryTheory.ChosenFiniteProducts
 import Mathlib.CategoryTheory.Category.Basic
-import Mathlib.Data.FunLike.Basic
-import Mathlib.CategoryTheory.ConcreteCategory.Bundled
-import Mathlib.CategoryTheory.ConcreteCategory.BundledHom
-import Mathlib.CategoryTheory.ConcreteCategory.Basic
 import Mathlib.Order.Basic
-import Mathlib.CategoryTheory.Functor.Hom
-import Mathlib.CategoryTheory.Products.Basic
-import Mathlib.CategoryTheory.Types
-import Mathlib.CategoryTheory.Quotient
 import Eileen.Proper
 
 /-!
@@ -26,6 +15,8 @@ This file defines ordered families of equivalences (OFE's).
 ## Implementation Notes
 - Because we have bundled OFE's, it's easier to defined nonexpansive functions as between
   OFE's instead of IRels, even though the latter is more general.
+- FIX: Setoid rewrites
+- FIX: Why is ``_root_.trans`` necessary but ``_root_.symm`` and ``_root_.refl`` are not?
 
 ## References
 [Iris: ofe.v](https://gitlab.mpi-sws.org/iris/iris/blob/master/iris/algebra/ofe.v)
@@ -207,77 +198,6 @@ An ordered family of equivlances.
 -/
 class OFE (T : Sort*) extends Rel T, IRel T, IRelMono T, IRelLimit T
 
-
--- FIXME: These next 6 defintions should be removable, and probably will have to be
--- once generalized rewiting lands. For some reason, the mathlib setoid typeclasses
--- aren't being inferred properly.
-
-/-
-section OFESetoid
-
-variable (T : Sort*)
-variable [OFE T]
-
-def OFE.refl (x : T): x ≈ x := by
-  apply Setoid.refl
-
-def OFE.symm {x y : T} : x ≈ y -> y ≈ x := by
-  apply Setoid.symm
-
-def OFE.trans {x y z : T} : x ≈ y -> y ≈ z -> x ≈ z := by
-  apply Setoid.trans
-
-def OFE.irefl (x : T) (i : ℕ) : x ≈[i] x := by
-  apply IRel.isieqv.irefl
-
-def OFE.isymm {x y : T} {i : ℕ} : x ≈[i] y -> y ≈[i] x := by
-  apply IRel.isieqv.isymm
-
-def OFE.itrans {x y z : T} {i : ℕ} : x ≈[i] y -> y ≈[i] z -> x ≈[i] z := by
-  apply IRel.isieqv.itrans
-
-end OFESetoid
--/
-
-
-
-/-
-
-/-- Notation to help infer an irel from an OFE instance -/
-@[simp]
-def OFE.irel (I : Type*) (T : Sort*) [Ix I] [Rel T] [OFE I T] : IRelation I T :=
-  _root_.irel
-
-
-/-- Notation to help infer a rel from an OFE instance -/
-@[simp]
-def OFE.rel (I : Type*) (T : Sort*) [Ix I] [Rel T] [OFE I T] : Relation T :=
-  _root_.rel
-
-
--- variable (I : Type*) (T : Type*)
--- variable [Ix I] [Rel T] [OFE I T]
--- variable (t1 t2 : T)
--- variable (i i': I)
--- -- -- #check (t1 ≈ t2)
--- -- -- #check (t1 ≈[i] t2)
--- -- -- #check (t1 ≈l[i] t2)
--- -- -- #check (i < i')
--- -- -- #check @irel_mono I T _ _ _
--- -- -- #check @refl T
--- -- -- #synth (IRel I T)
--- -- -- #check (irel : IRelation I T)
--- -- #check trans (_ : t1 ≈ t2)
--- -- example (_ : t1 ≈[i] t2) : t2 ≈[i] t1 := by
--- --   apply symm
--- --   trivial
---   -- No need for isymm, can just use symm
---
--- -- NOTE: dist_le should be replaced with irel_mono
--/
-
-
-
 section OFEFunctions
 
 /-!
@@ -339,10 +259,7 @@ lemma cmp_nonexpansive {f : T1 -> T2} {g : T2 -> T3} (H1 : nonexpansive f) (H2 :
   apply H1
   trivial
 
-
-
 end OFEFunctions
-
 
 
 namespace OFE
@@ -360,40 +277,6 @@ lemma nonexpansive_equiv_equiv_proper {f : T1 -> T2} (H : nonexpansive f) :
   apply H
   apply forall_irel_of_rel
   apply H'
-
-
-/-
-/--
-A nonexpansive map is proper wrt. equality when the index relations refine the equality
--/
-lemma is_nonexpansive_refinement_proper (RM : irelation M) (RN : irelation N) (EM : relation M) (EN : relation N)
-    (f : M -> N) (HIM : is_indexed_refinement RM EM) (HIN : is_indexed_refinement RN EN)
-    (HN : is_nonexpansive RM RN f) :
-    proper1 EM EN f := by
-  simp
-  intro x y H
-  apply HIN.mp
-  apply HIM.mpr at H
-  intro _
-  apply HN
-  apply H
-
--/
-
-
-
--- example (f : T1 -> T2) (i : I) (HN : nonexpansive I f) (t1 t2 : T1) (H : t1 ≈[i] t2) : f t1 ≈[i] f t2 := by
---   apply OFE.itrans
---   · apply HN
---     apply H
---   apply OFE.irefl
---
--- example (f : T1 -> T2) (HN : nonexpansive I f) (t1 t2 : T1) (H : t1 ≈ t2) : f t1 ≈ f t2 := by
---   apply OFE.trans
---   · apply (equiv_equiv_proper I HN)
---     apply H
---   apply OFE.refl
-
 
 end OFE
 
@@ -565,7 +448,6 @@ class HasNonExpansive [OFE M] [OFE N] [FunLike F M N] (f : F) where
 instance [OFE M] [OFE N] [NonExpansiveClass F M N] (f : F) : HasNonExpansive f where
   is_nonexpansive := by apply NonExpansiveClass.is_nonexpansive
 
-
 namespace NonExpansive
 
 /-- An instance of the struct for a function which has a nonexpansive proof -/
@@ -604,7 +486,6 @@ def ccompose [OFE α] [OFE β] [OFE γ] (g : β -n> γ) (f : α -n> β) : α -n>
     · apply is_nonexpansive
     · apply is_nonexpansive
 
-
 lemma ccompose_assoc [OFE α] [OFE β] [OFE γ] [OFE δ] {h : γ -n> δ} {g : β -n> γ} {f : α -n> β} :
     (h.ccompose g).ccompose f = h.ccompose (g.ccompose f) := by rfl
 
@@ -628,7 +509,7 @@ lemma cid_ccompose [OFE α] [OFE β] (f : α -n> β) :
     (NonExpansive.cid β).ccompose f = f := by
   rfl
 
-/- Would be nice to port these
+/- Would probably be nice to port these
 
 @[simp]
 theorem cancel_right {g₁ g₂ : β →+* γ} {f : α →+* β} (hf : Surjective f) :
@@ -643,23 +524,10 @@ theorem cancel_left {g : β →+* γ} {f₁ f₂ : α →+* β} (hg : Injective 
 -/
 
 
-/-- A "map" of nonexpansive functions.
-NOTE: The real construction is based on Hom functors?
-
--- https://ncatlab.org/nlab/show/twisted+arrow+category
--- https://github.com/leanprover-community/mathlib4/blob/8666bd82efec40b8b3a5abca02dc9b24bbdf2652/Mathlib/CategoryTheory/Arrow.lean#L36-L37
--/
+/-- A "map" of nonexpansive functions. -/
 def map [OFE A] [OFE B] [OFE A'] [OFE B']
     (f : A' -n> A) (g : B -n> B') (x : A -n> B) : (A' -n> B') :=
   ccompose g (ccompose x f)
-
-instance : CategoryTheory.BundledHom @NonExpansive where
-  toFun _ _ F := F
-  id _ := NonExpansive.cid _
-  comp := @NonExpansive.ccompose
-  comp_toFun _ _ _ f g := by
-    simp only [DFunLike.coe]
-    rfl
 
 end NonExpansive
 end NonExpansiveBundled
@@ -667,6 +535,7 @@ end NonExpansiveBundled
 
 
 section ContractiveBundled
+
 /-! ### Bundled Contractive maps  -/
 
 /-- A contractive function between two OFE's -/
@@ -675,7 +544,6 @@ structure Contractive (M N : Sort*) [OFE M] [OFE N]  extends NonExpansive M N wh
   is_contractive : contractive toFun
 
 infixr:25 " -c> " => Contractive
-
 
 /-- The type F behaves like a contractive function -/
 class ContractiveClass (F : Sort*) (M N : outParam Sort*) [OFE M] [OFE N] extends
@@ -767,137 +635,9 @@ lemma ccompose_apply [OFE α] [OFE β] [OFE γ] (g : β -c> γ) (f : α -c> β) 
 end Contractive
 end ContractiveBundled
 
-
-
-section OFEBundled
-/-! ### The category of OFE's plus NonExpansive maps -/
-
-/-- Objects in the category of OFE's -/
-def OFECat := CategoryTheory.Bundled OFE
-
--- Coercion between objects in the category of OFE's and Type (their type)
-instance : CoeSort OFECat Type where
-  coe := CategoryTheory.Bundled.α
-
-attribute [coe] CategoryTheory.Bundled.α
-
-attribute [instance] CategoryTheory.Bundled.str
-
-namespace OFECat
-
-abbrev of (T : Type) [OFE T] : OFECat where
-  α := T
-
-lemma coe_of (T : Type) [OFE T] : (of T : Type) = T := by rfl
-
-lemma of_carrier (O : OFECat) : of O = O := by rfl
-
-variable {R} in
-/-- Morphisms in the category of OFE's -/
-@[ext]
-structure Hom (R S : OFECat) where
-  private mk::
-  hom : R -n> S
-
-/-- The category of OFEs and nonexpansive functions -/
-instance : CategoryTheory.Category OFECat where
-  Hom R S := OFECat.Hom R S
-  id R := ⟨ NonExpansive.cid R ⟩
-  comp F G := ⟨ G.hom.ccompose F.hom ⟩
-
-/-- Morphisms of the OFE category behave like functions -/
-instance {R S : OFECat} : CoeFun (R ⟶ S) (fun _ ↦ R → S) where
-  coe f := f.hom
-
-@[simp]
-lemma hom_id {R : OFECat} : (CategoryTheory.CategoryStruct.id R : R ⟶ R).hom = NonExpansive.cid R := rfl
-
-lemma id_apply (R : OFECat) (r : R) :
-    (CategoryTheory.CategoryStruct.id  R : R ⟶ R) r = r := by simp
-
-@[simp]
-lemma hom_comp {R S T : OFECat} (f : R ⟶ S) (g : S ⟶ T) :
-    (CategoryTheory.CategoryStruct.comp f g).hom = g.hom.ccompose f.hom := rfl
-
-lemma comp_apply {R S T : OFECat} (f : R ⟶ S) (g : S ⟶ T) (r : R) :
-    (CategoryTheory.CategoryStruct.comp f g) r = g (f r) := by simp
-
-@[ext]
-lemma hom_ext {R S : OFECat} {f g : R ⟶ S} (hf : f.hom = g.hom) : f = g :=
-  Hom.ext hf
-
-/-- Typecheck a nonexpansive function as a morphism in OFE  -/
-abbrev ofHom {R S : Type} [OFE R] [OFE S] (f : R -n> S) : OFECat.of R ⟶ OFECat.of S :=
-  ⟨f⟩
-
-lemma hom_ofHom {R S : Type} [OFE R] [OFE S] (f : R -n> S) :
-  (ofHom f).hom = f := rfl
-
-@[simp]
-lemma ofHom_hom {R S : OFECat} (f : R ⟶ S) :
-    ofHom (Hom.hom f) = f := rfl
-
-@[simp]
-lemma ofHom_id {R : Type} [OFE R] : ofHom (NonExpansive.cid R) = CategoryTheory.CategoryStruct.id (OFECat.of R) := rfl
-
-@[simp]
-lemma ofHom_comp {R S T : Type} [OFE R] [OFE S] [OFE T]
-    (f : R -n> S) (g : S -n> T) :
-    ofHom (g.ccompose f) = CategoryTheory.CategoryStruct.comp (ofHom f) (ofHom g) :=
-  rfl
-
-lemma ofHom_apply {R S : Type} [OFE R] [OFE S]
-    (f : R -n> S) (r : R) : ofHom f r = f r := rfl
-
-instance : CategoryTheory.ConcreteCategory OFECat where
-  -- Functor from OFECat to Type
-  forget :=
-    { obj R := R
-      map f x := (f.hom) x }
-  forget_faithful :=
-    -- TODO: Simplify me
-    ⟨fun h => by
-      rename_i f g
-      rcases f
-      rcases g
-      ext
-      simp_all [DFunLike.coe] ⟩
-
-instance : CategoryTheory.LargeCategory OFECat where
-
-lemma forget_obj {R : OFECat} : CategoryTheory.ConcreteCategory.forget.obj R = R := by
-  rfl
-
--- lemma forget_map {R S : OFECat} (f : R ⟶ S) :
---     CategoryTheory.ConcreteCategory.forget.map f = f := by
---   rfl
---
--- instance {R : OFECat} : OFE (CategoryTheory.ConcreteCategory.forget.obj R) :=
---   (inferInstance : OFE R.carrier)
-
-end OFECat
-
--- -- TODO: Coercion?
--- def OFECat.ofHom [OFE A] [OFE B] (f : A -> B) [H : HasNonExpansive f] : Quiver.Hom A B :=
---   sorry
---   -- NonExpansive.mk f (H.is_nonexpansive)
-
-end OFEBundled
-
-
-
-
-
-
-
-
-
-
-
 section OFEDiscrete
 
-/-! ### A discrete OFE -/
-
+/-! ### Definition for a type with a discrete OFE -/
 
 /-- [semi-bundled] A discrete OFE is an OFE where all elements are discrete -/
 class DiscreteOFE (T : Sort*) extends OFE T where
@@ -1254,127 +994,6 @@ end LimitPreserving
 
 
 
-
-
-section COFEBundled
-/-! ### The category of COFE's with nonexpansive functions -/
-/-- -/
-def COFECat := CategoryTheory.Bundled COFE
-
-
--- Coercion between objects in the category of OFE's and Type (their type)
-instance : CoeSort COFECat Type where
-  coe := CategoryTheory.Bundled.α
-
-attribute [coe] CategoryTheory.Bundled.α
-
-attribute [instance] CategoryTheory.Bundled.str
-
-
-
-
-namespace COFECat
-
-abbrev of (T : Type) [COFE T] : COFECat where
-  α := T
-
-lemma coe_of (T : Type) [COFE T] : (of T : Type) = T := by rfl
-
-lemma of_carrier (O : COFECat) : of O = O := by rfl
-
-variable {R} in
-/-- Morphisms in the category of COFE's -/
-@[ext]
-structure Hom (R S : COFECat) where
-  private mk::
-  hom : R -n> S
-
-/-- The category of OFEs and nonexpansive functions -/
-instance : CategoryTheory.Category COFECat where
-  Hom R S := COFECat.Hom R S
-  id R := ⟨ NonExpansive.cid R ⟩
-  comp F G := ⟨ G.hom.ccompose F.hom ⟩
-
-/-- Morphisms of the OFE category behave like functions -/
-instance {R S : COFECat} : CoeFun (R ⟶ S) (fun _ ↦ R → S) where
-  coe f := f.hom
-
-@[simp]
-lemma hom_id {R : COFECat} : (CategoryTheory.CategoryStruct.id R : R ⟶ R).hom = NonExpansive.cid R := rfl
-
-lemma id_apply (R : COFECat) (r : R) :
-    (CategoryTheory.CategoryStruct.id  R : R ⟶ R) r = r := by simp
-
-@[simp]
-lemma hom_comp {R S T : COFECat} (f : R ⟶ S) (g : S ⟶ T) :
-    (CategoryTheory.CategoryStruct.comp f g).hom = g.hom.ccompose f.hom := rfl
-
-lemma comp_apply {R S T : COFECat} (f : R ⟶ S) (g : S ⟶ T) (r : R) :
-    (CategoryTheory.CategoryStruct.comp f g) r = g (f r) := by simp
-
-@[ext]
-lemma hom_ext {R S : COFECat} {f g : R ⟶ S} (hf : f.hom = g.hom) : f = g :=
-  Hom.ext hf
-
-/-- Typecheck a nonexpansive function as a morphism in OFE  -/
-abbrev ofHom {R S : Type} [COFE R] [COFE S] (f : R -n> S) : COFECat.of R ⟶ COFECat.of S :=
-  ⟨f⟩
-
-lemma hom_ofHom {R S : Type} [COFE R] [COFE S] (f : R -n> S) :
-  (ofHom f).hom = f := rfl
-
-@[simp]
-lemma ofHom_hom {R S : COFECat} (f : R ⟶ S) :
-    ofHom (Hom.hom f) = f := rfl
-
-@[simp]
-lemma ofHom_id {R : Type} [COFE R] : ofHom (NonExpansive.cid R) = CategoryTheory.CategoryStruct.id (COFECat.of R) := rfl
-
-@[simp]
-lemma ofHom_comp {R S T : Type} [COFE R] [COFE S] [COFE T]
-    (f : R -n> S) (g : S -n> T) :
-    ofHom (g.ccompose f) = CategoryTheory.CategoryStruct.comp (ofHom f) (ofHom g) :=
-  rfl
-
-lemma ofHom_apply {R S : Type} [COFE R] [COFE S]
-    (f : R -n> S) (r : R) : ofHom f r = f r := rfl
-
-instance : CategoryTheory.ConcreteCategory COFECat where
-  -- Functor from OFECat to Type
-  forget :=
-    { obj R := R
-      map f x := (f.hom) x }
-  forget_faithful :=
-    -- TODO: Simplify me
-    ⟨fun h => by
-      rename_i f g
-      rcases f
-      rcases g
-      ext
-      simp_all [DFunLike.coe] ⟩
-
-instance : CategoryTheory.LargeCategory COFECat where
-
-lemma forget_obj {R : COFECat} : CategoryTheory.ConcreteCategory.forget.obj R = R := by
-  rfl
-
-instance {R : OFECat} : OFE (CategoryTheory.ConcreteCategory.forget.obj R) :=
-  (inferInstance : OFE R.α)
-
--- lemma forget_map {R S : OFECat} (f : R ⟶ S) :
---     CategoryTheory.ConcreteCategory.forget.map f = f := by
---   rfl
-
-
-end COFECat
-end COFEBundled
-
-def OFECat.toOFE : CategoryTheory.Functor COFECat OFECat where
-  obj X := ⟨ X.1, by infer_instance ⟩
-  map f := ⟨ f,
-             by
-               rcases f with ⟨ f, H ⟩
-               apply H ⟩
 
 section Contractive
 
@@ -1742,8 +1361,6 @@ instance [OFE A] [OFE B] : @HasNonExpansive (prodO A B) A _ _ _ _ Prod.fst where
 instance [OFE A] [OFE B] : @HasNonExpansive (prodO A B) B _ _ _ _ Prod.snd where
   is_nonexpansive := snd_nonexpansive
 
-
-
 instance [COFE A] [COFE B] : COFE (prodO A B) where
   lim c :=
     (COFE.lim (Chain.map c fst_nonexpansive), COFE.lim (Chain.map c snd_nonexpansive))
@@ -1811,139 +1428,7 @@ lemma Product.functor_prod'_nonexpansive [OFE A] [OFE B] [OFE C] :
 --   sorry
 
 end Product
-
-
-
-
-section OFECatCCC
-
-/-! ### (Experiment) Define oFunctors using mathlib's existing categorical definitions
-
-This section mimics the pattern in Mathlib/CategoryTheory/ChosenFiniteProducts/Cat.lean
-since the construction is very similar.
--/
-
--- TODO: There should be a way to lift morphisms
-def OFECat.Fst (C D : OFECat) : (Quiver.Hom (OFECat.of (C × D)) C) :=
-  -- OFECat.ofHom Prod.fst -- TODO: Need to fix coercions for the inference from HasNonExpansive to work, probably?
-  OFECat.ofHom <| NonExpansive.mk Prod.fst fst_nonexpansive
-
-def OFECat.Snd (C D : OFECat) : (Quiver.Hom (OFECat.of (C × D)) D) :=
-  OFECat.ofHom <| NonExpansive.mk Prod.snd snd_nonexpansive
-
-def OFEProdCone (C D : OFECat) : CategoryTheory.Limits.BinaryFan C D :=
-  .mk (P := .of (C × D))
-    (OFECat.Fst C D)
-    (OFECat.Snd C D)
-
-def isLimitProdCone (X Y : OFECat) : CategoryTheory.Limits.IsLimit (OFEProdCone X Y) :=
-  CategoryTheory.Limits.BinaryFan.isLimitMk
-     (fun S => OFECat.ofHom <| Product.functor_prod S.fst.hom S.snd.hom)
-     (by aesop_cat)
-     (by intros; congr)
-     (by
-       simp
-       intros _ _ H1 H2
-       rw [<- H1, <- H2]
-       congr)
-
-abbrev OFE.terminal : OFECat := OFECat.of unitO
-
-def OFETerminalIsTerminal : CategoryTheory.Limits.IsTerminal OFE.terminal :=
-  CategoryTheory.Limits.IsTerminal.ofUniqueHom
-    (fun _ => OFECat.ofHom <| NonExpansive.cconst Unit.unit)
-    (by intros; congr)
-
-instance : CategoryTheory.ChosenFiniteProducts OFECat where
-  product X Y := { isLimit := isLimitProdCone X Y }
-  terminal := { isLimit := OFETerminalIsTerminal }
-
--- #synth CategoryTheory.Limits.HasFiniteProducts OFECat
-
--- TODO: Cleanup
-def OFEClosedCat.exponentiate (A : OFECat) : CategoryTheory.Functor OFECat OFECat where
-  obj Y := OFECat.of (A -n> Y)
-  map := fun {X Y} f =>
-    OFECat.ofHom <|
-    NonExpansive.mk (fun F =>
-      (@NonExpansive.ccompose A X Y _ _ _
-              (NonExpansive.mk f.hom.toFun <| by apply NonExpansive.is_nonexpansive)
-              (NonExpansive.mk F.toFun <| by apply NonExpansive.is_nonexpansive))) <|
-      by
-        simp [nonexpansive, NonExpansive.ccompose, DFunLike.coe, irel, IRel.ir]
-        intros
-        apply NonExpansive.is_nonexpansive
-        rename_i H x
-        have H' := H x
-        simp_all [DFunLike.coe]
-
-def NonExpansive.curry [OFE A] [OFE B] [OFE C] (f : (prodO A B) -n> C) : B -n> (A -n> C) :=
-  NonExpansive.mk (fun b => NonExpansive.mk (fun a => f (a, b))
-      (by
-        simp [nonexpansive]
-        intros
-        apply NonExpansive.is_nonexpansive
-        simp [irel, IRel.ir]
-        apply And.intro
-        · trivial
-        · apply refl))
-    (by
-      simp [nonexpansive]
-      intros
-      intro _
-      simp [DFunLike.coe]
-      apply NonExpansive.is_nonexpansive
-      simp [irel, IRel.ir]
-      apply And.intro
-      · apply refl
-      · trivial)
-
-def NonExpansive.uncurry [OFE A] [OFE B] [OFE C] (f : B -n> (A -n> C)) : (prodO A B) -n> C :=
-  NonExpansive.mk (fun p => f (Prod.snd p) (Prod.fst p)) <|
-    by
-      simp [nonexpansive]
-      intros
-      simp [DFunLike.coe]
-      rcases f with ⟨ f, Hf ⟩
-      simp
-      rename_i H
-      rcases H with ⟨ H1, H2 ⟩
-      simp_all
-      apply _root_.trans
-      · apply NonExpansive.is_nonexpansive
-        apply H1
-      apply _root_.trans
-      · apply Hf
-        apply H2
-      apply refl
-
-def OFECatEqv (X Z Y : OFECat) :
-    ((CategoryTheory.MonoidalCategory.tensorLeft X).obj Z ⟶ Y) ≃ (Z ⟶ (OFEClosedCat.exponentiate X).obj Y) where
-  toFun x := OFECat.ofHom <| NonExpansive.curry x.hom
-  invFun x := OFECat.ofHom <| NonExpansive.uncurry x.hom
-  left_inv := by aesop_cat
-  right_inv := by aesop_cat
-
-def OFECatCoreHomEquiv (X : OFECat) :
-    CategoryTheory.Adjunction.CoreHomEquiv (CategoryTheory.MonoidalCategory.tensorLeft X) (OFEClosedCat.exponentiate X) where
-  homEquiv Z Y := @OFECatEqv X Z Y
-
-def OFECatClosed (X : OFECat) : CategoryTheory.Closed X where
-  rightAdj := OFEClosedCat.exponentiate X
-  adj := CategoryTheory.Adjunction.mkOfHomEquiv (OFECatCoreHomEquiv X)
-
-instance : CategoryTheory.CartesianClosed OFECat where
-  closed := OFECatClosed
-
-/- The internal hom functor can noe bw used -/
--- def oFunctor' := @CategoryTheory.internalHom OFECat _ _ _
-
-end OFECatCCC
-
-
-
 section oFunctor
-
 
 /-
 /-! ## oFunctors (OFE -> COFE functors) -/
