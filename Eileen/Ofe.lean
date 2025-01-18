@@ -461,6 +461,7 @@ def cid (M : Type) [OFE M] : M -n> M where
   toFun := @_root_.id _
   is_nonexpansive := id_nonexpansive
 
+
 @[simp]
 lemma coe_cid [OFE T] : ⇑(NonExpansive.cid T) = _root_.id := by rfl
 
@@ -486,27 +487,29 @@ def ccompose [OFE α] [OFE β] [OFE γ] (g : β -n> γ) (f : α -n> β) : α -n>
     · apply is_nonexpansive
     · apply is_nonexpansive
 
+@[inherit_doc] notation:60 l:60 " ⊙ " r:60 => NonExpansive.ccompose l r
+
 lemma ccompose_assoc [OFE α] [OFE β] [OFE γ] [OFE δ] {h : γ -n> δ} {g : β -n> γ} {f : α -n> β} :
-    (h.ccompose g).ccompose f = h.ccompose (g.ccompose f) := by rfl
+    (h ⊙ g) ⊙ f = h ⊙ (g ⊙ f) := by rfl
 
 @[simp]
 lemma coe_ccompose [OFE α] [OFE β] [OFE γ] (g : β -n> γ) (f : α -n> β) :
-    (g.ccompose f : α -> γ) = g ∘ f := by
+    (g ⊙ f : α -> γ) = g ∘ f := by
   rfl
 
 @[simp]
 lemma ccompose_apply [OFE α] [OFE β] [OFE γ] (g : β -n> γ) (f : α -n> β) (x : α) :
-    (g.ccompose f) x = g (f x) := by
+    (g ⊙ f) x = g (f x) := by
   rfl
 
 @[simp]
 lemma ccompose_cid [OFE α] [OFE β] (f : α -n> β) :
-    f.ccompose (NonExpansive.cid α) = f := by
+    f ⊙ (NonExpansive.cid α) = f := by
   rfl
 
 @[simp]
 lemma cid_ccompose [OFE α] [OFE β] (f : α -n> β) :
-    (NonExpansive.cid β).ccompose f = f := by
+    (NonExpansive.cid β) ⊙ f = f := by
   rfl
 
 /- Would probably be nice to port these
@@ -527,7 +530,7 @@ theorem cancel_left {g : β →+* γ} {f₁ f₂ : α →+* β} (hg : Injective 
 /-- A "map" of nonexpansive functions. -/
 def map [OFE A] [OFE B] [OFE A'] [OFE B']
     (f : A' -n> A) (g : B -n> B') (x : A -n> B) : (A' -n> B') :=
-  ccompose g (ccompose x f)
+  g ⊙ (x ⊙ f)
 
 end NonExpansive
 end NonExpansiveBundled
@@ -1466,6 +1469,7 @@ structure oFunctor where
 
 export oFunctor (obj map map_ne map_id map_cmp)
 
+
 attribute [instance] oFunctor.obj_ofe
 attribute [instance] oFunctor.map_ne
 
@@ -1488,15 +1492,15 @@ class OFComp (F1 F2 F3 : Type*) where
   comp : F1 -> F2 -> F3
 
 instance : (OFComp ocFunctor oFunctor oFunctor) where
-  comp := sorry
+  comp F1 F2 := sorry
 
 instance : (OFComp ocFunctorContractive oFunctorContractive oFunctorContractive) where
-  comp := sorry
+  comp F1 F2 := sorry
 
 instance : (OFComp oFunctorContractive ocFunctorContractive oFunctorContractive) where
-  comp := sorry
+  comp F1 F2 := sorry
 
-
+-- TODO Custom syntax category for OFunctors would be nice
 
 
 end oFunctor

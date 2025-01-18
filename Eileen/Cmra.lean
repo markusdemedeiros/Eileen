@@ -210,5 +210,113 @@ end CMRA
 end CMRAUnbundled
 
 
--- CMRA Hierarchy
 
+section CmraMapBundled
+
+/-! ### Bundled camera maps  -/
+
+/-- A morphism between to CMRAs -/
+@[ext]
+structure CmraMor (M N : Type*) [CMRA M] [CMRA N] extends NonExpansive M N where
+  is_validN_map (n : ℕ) (x : M) : ✓[n] x -> ✓[n] (toFun x)
+  is_op_map (x y : M) : toFun (x ⬝ y) = toFun x ⬝ toFun y
+
+infixr:25 " -C> " => CmraMor
+
+-- FIXME: Refactor after I stop laughing
+infixr:25 " -📸> " => CmraMor
+
+/-- The type F behaves like a CMRA morphism -/
+class CmraMapClass (F : Type*) (M N : outParam Type*) [CMRA M] [CMRA N] extends
+    NonExpansiveClass F M N where
+  is_validN_map (n : ℕ) (x : M) : ∀ f : F, ✓[n] x -> ✓[n] (f x)
+  is_op_map (x y : M) : ∀ f : F, f (x ⬝ y) = f x ⬝ f y
+
+@[coe]
+def CmraMapClass.toCmra {F : Type*} {M N : outParam Type*} [CMRA M] [CMRA N] [CmraMapClass F M N] (f : F) :
+    M -C> N where
+  toFun := f
+  is_nonexpansive := by apply NonExpansiveClass.is_nonexpansive
+  is_validN_map _ _ := by apply is_validN_map
+  is_op_map _ _ := by apply is_op_map
+
+instance {F : Type*} {M N : outParam Type*} [CMRA M] [CMRA N] [CmraMapClass F M N] : CoeTC F (M -C> N) where
+  coe := CmraMapClass.toCmra
+
+instance (M N : Type*) [CMRA M] [CMRA N] : FunLike (M -C> N) M N where
+  coe := fun F x => F.toFun x
+  -- TODO: Simplify
+  coe_injective' := by
+    intro x y H
+    cases x
+    cases y
+    simp_all
+    ext
+    simp_all
+
+instance (M N : Type*) [CMRA M] [CMRA N] : CmraMapClass (M -C> N) M N where
+  is_nonexpansive := by
+    simp [DFunLike.coe]
+    intro f
+    apply NonExpansive.is_nonexpansive
+  is_validN_map := by
+    simp [DFunLike.coe]
+    intro _ _ f _
+    apply f.is_validN_map
+    trivial
+  is_op_map := by
+    simp [DFunLike.coe]
+    intro _ _ f
+    apply f.is_op_map
+
+
+/-- The term f hebcaes like a cmra map -/
+class HasCmraMap [CMRA M] [CMRA N] [FunLike F M N] (f : F) extends HasNonExpansive f where
+  is_validN_map (n : ℕ) (x : M) : ✓[n] x -> ✓[n] (f x)
+  is_op_map (x y : M) : f (x ⬝ y) = f x ⬝ f y
+
+/-- Any term is a type of cmra map has a proof of cmra map -/
+instance [CMRA M] [CMRA N] [CmraMapClass F M N] (f : F) : HasCmraMap f where
+  is_validN_map _ _ := by apply CmraMapClass.is_validN_map
+  is_op_map _ _ := by apply CmraMapClass.is_op_map
+
+
+namespace CmraMap
+
+/-- Obtain a Contractive struct for any term which has a proof of contractivity -/
+def lift [CMRA M] [CMRA N] [FunLike F M N] (f : F) [HasCmraMap f] : M -C> N where
+  toFun := f
+  is_nonexpansive := by apply HasNonExpansive.is_nonexpansive
+  is_validN_map _ _ := by apply HasCmraMap.is_validN_map
+  is_op_map _ _ := by apply HasCmraMap.is_op_map
+
+
+/-
+
+-- /-- The (bundled) composition of morphisms in the category of OFE+NonExpansive functions -/
+-- def Contractive.comp [OFE α] [OFE β] [OFE γ] (g : β -c> γ) (f : α -c> β) : α -c> γ where
+--   toFun := g ∘ f
+--   is_nonexpansive := by
+--     simp only [DFunLike.coe]
+--     apply cmp_nonexpansive
+--     · apply NonExpansive.is_nonexpansive
+--     · apply NonExpansive.is_nonexpansive
+--   is_contractive := by
+--     sorry
+
+-- lemma Contractive.comp_assoc [OFE α] [OFE β] [OFE γ] [OFE δ] {h : γ -c> δ} {g : β -c> γ} {f : α -c> β} :
+--     (h.comp g).comp f = h.comp (g.comp f) := by rfl
+-/
+
+@[simp]
+lemma coe_ccompose [CMRA α] [CMRA β] [CMRA γ] (g : β -C> γ) (f : α -C> β) :
+    (g.ccompose f : α -> γ) = g ∘ f := by
+  rfl
+
+@[simp]
+lemma ccompose_apply [CMRA α] [CMRA β] [CMRA γ] (g : β -C> γ) (f : α -C> β) (x : α) :
+    (g.ccompose f) x = g (f x) := by
+  rfl
+
+end CmraMap
+end CmraMapBundled
