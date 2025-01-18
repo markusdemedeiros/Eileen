@@ -612,10 +612,10 @@ def oFunctor.map_internal' (f : oFunctorPreLeibniz) (A A' B B' : COFECat) :
 -- I wonder how much changes if I define an OFE structure on a type with objects quotiented by equivalence
 -- The OFE on that type
 
-class oFunctor (f : oFunctorCPre) where
+class oFunctor' (f : oFunctorCPre) where
   internal_nonexpansive : True
 
-class oFunctorContractive (f : oFunctorCPre) extends oFunctor f where
+class oFunctorContractive' (f : oFunctorCPre) extends oFunctor' f where
   internal_contractive : True
 
 
