@@ -1896,13 +1896,16 @@ def tower_chain (c : Chain (Tower F)) (k : ℕ) : Chain (A F k) where
   car i := (c i).car k
   is_cauchy := sorry
 
-instance : COFE (Tower F) where
-  lim c :=
-    Tower.mk (fun i => COFEClass.lim <| tower_chain F c i)
-    sorry
-  completeness :=
-    sorry
+-- instance : COFE (Tower F) where
+--   lim c :=
+--     Tower.mk (fun i => COFEClass.lim <| tower_chain F c i)
+--     sorry
+--   completeness :=
+--     sorry
 
+instance : COFEClass (instOFETower F) where
+  lim c := Tower.mk (fun i => COFEClass.lim <| tower_chain F c i) sorry
+  completeness := sorry
 
 mutual
 
@@ -1926,10 +1929,60 @@ lemma ff_tower (k i : ℕ) (X : Tower F) : ff F i (X.car (k + 1)) ≈[k] X.car (
 
 lemma gg_tower (k i : ℕ) (X : Tower F) : gg F i (X.car (k + i)) ≈ X.car k := sorry
 
+lemma Tower.car_ne (k : ℕ) : nonexpansive (fun T : Tower F => T.car k) := sorry
 
+def Tower.project (x : ℕ) : Tower F -n> A F k := NonExpansive.mk _ (Tower.car_ne F k)
 
+def coerce {i j : ℕ} (H : i = j) : A F i -n> A F j := by
+  -- Make into a proof term
+  rw [H]
+  apply NonExpansive.cid (A F j)
 
+-- Which coerce lemmas do I need?
 
+lemma gg_gg {k i i1 i2 j : ℕ} (H1 : k = j + i) (H2 : k = j + i1 + i2) (x : A F k) :
+    gg F i (coerce F H1 x) = gg F i1 (gg F i2 (coerce F H2 x)) := by sorry
+
+lemma ff_ff {k i i1 i2 j : ℕ} (H1 : k + i = j) (H2 : k + i2 + i1 = j) (x : A F k) :
+    coerce F H1 (ff F i x) = coerce F H2 (ff F i1 (ff F i2 x)) := by sorry
+
+def embed_coerce {k : ℕ} (i : ℕ) : A F k -n> A F i :=
+  match (Nat.decLt k i) with
+  | isTrue H =>
+    let R : k + (i - k) = i := Nat.add_sub_of_le <| Nat.le_of_succ_le H
+    coerce F R ⊙ ff F (i - k)
+  | isFalse H =>
+    let R : k = i + (k - i) := by simp_all only [Nat.not_lt, Nat.add_sub_cancel']
+    gg F (k - i) ⊙ coerce F R
+
+lemma g_embed_coerce {k i : ℕ} (x : A F k) : (g F i <| embed_coerce F (i + 1) x) ≈ embed_coerce F i x := by
+  sorry
+
+def embed (k : ℕ) (x : A F k) : Tower F where
+  car n := embed_coerce F n x
+  g_tower := sorry
+
+lemma embed_ne (n : ℕ) : nonexpansive (embed F n) := by sorry
+
+def Tower.embed (k : ℕ) : (A F k) -n> Tower F := NonExpansive.mk _ (embed_ne _ _)
+
+lemma embed_f (k : ℕ) (x : A F k) : embed F (k + 1) (f F k x) ≈ embed F k x := by sorry
+
+lemma embed_tower (k : ℕ) (X : Tower F) : embed F (k + 1) (X.car (k + 1)) ≈[k] X := sorry
+
+def unfold_chain (X : Tower F) : Chain (F.ap (Tower F)) where
+  car n := F.map (Tower.project F n, Tower.embed F n) (X.car (n + 1))
+  is_cauchy := sorry
+
+def unfold (X : Tower F) : F.ap (Tower F) := COFEClass.lim (unfold_chain F X)
+
+lemma unfold_ne : nonexpansive (unfold F) := by sorry
+
+def fold (X : F.ap (Tower F)) : Tower F where
+  car n := g F n <| F.map (Tower.embed F n, Tower.project F n) X
+  g_tower := sorry
+
+lemma fold_ne : nonexpansive (fold F) := by sorry
 
 
 end COFESolver
