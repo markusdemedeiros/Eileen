@@ -515,7 +515,7 @@ section oFunctorCat
 
 /-- The data of an oFunctor: A bifunctor from (COFEᵒᵖ × COFE) to OFE,
 where the functor laws must hold up to equivalence. -/
-abbrev oFunctorPre := CategoryTheory.Functor (COFECatᵒᵖ × COFECat) qOFECat
+abbrev oFunctorPre' := CategoryTheory.Functor (COFECatᵒᵖ × COFECat) qOFECat
 
 /-- A bifunctor from (COFEᵒᵖ × COFE) to OFE. This is stronger than an
 oFunctor because the functor laws must hold up to equality in OFE. -/
@@ -530,7 +530,7 @@ abbrev oFunctorCPreLeibniz := CategoryTheory.Functor (COFECatᵒᵖ × COFECat) 
 /-- Every Leibiz oFunctorPre has a canonical oFunctor, obtained by quotienting the
 morphisms in its image by equivalence. -/
 @[simp, coe]
-def oFunctorPre.ofLeibniz (f : oFunctorPreLeibniz) : oFunctorPre :=
+def oFunctorPre.ofLeibniz (f : oFunctorPreLeibniz) : oFunctorPre' :=
   CategoryTheory.Functor.comp f qOFECat_functor
 
 @[simp, coe]
@@ -539,7 +539,7 @@ def oFunctorCPre.ofLeibniz (f : oFunctorCPreLeibniz) : oFunctorCPre :=
 
 
 @[simp, coe]
-def oFunctorPre.ofoFunctorCPre (f : oFunctorCPre) : oFunctorPre :=
+def oFunctorPre.ofoFunctorCPre (f : oFunctorCPre) : oFunctorPre' :=
   CategoryTheory.Functor.comp f qCOFECat_qOFECat_forget
 
 
