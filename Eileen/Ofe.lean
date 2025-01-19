@@ -441,7 +441,7 @@ instance (M N : Sort*) [OFE M] [OFE N] : NonExpansiveClass (NonExpansive M N) M 
 --     exists NonExpansive.mk f H
 
 /-- The term f has a proof of its nonexpansivity -/
-class HasNonExpansive [OFE M] [OFE N] [FunLike F M N] (f : F) where
+class HasNonExpansive [OFE M] [OFE N] [FunLike F M N] (f : F) : Prop where
   is_nonexpansive : nonexpansive f
 
 /-- All terms of a nonexpansive type have a proof of their nonexpansivity -/
@@ -1232,7 +1232,7 @@ instance : DiscreteOFE unitO where
   refines := by simp [rel, irel]
   discrete := by simp  [rel, irel]
 
-instance : COFE unitO where
+instance unitO_COFE : COFE unitO where
   lim _ := Unit.unit
   completeness _ _ := by simp [irel, IRel.ir]
 
@@ -1439,33 +1439,38 @@ section oFunctor
 NOTE: See https://gitlab.mpi-sws.org/iris/iris/blob/master/docs/resource_algebras.md
 -/
 
-
-/-
-A "bifunctor" out of COFE.
-All types in the functor hierarchy should extend this structure.
--/
 structure oFunctor where
-  /-- The oFunctor assigns every pair of COFE's to a type. -/
   obj (A B : Type) [COFE A] [COFE B] : Type
-
-  /-- The oFunctor assigns every pair of COFE's to an OFE. -/
   obj_ofe (A B : Type) [COFE A] [COFE B] : OFE <| obj A B
-
-  /-- The oFunctor assigns every pair of nonexpansive maps to a nonexpansive maps -/
-  map (A A' B B': Type) [COFE A] [COFE A'] [COFE B] [COFE B'] :
+  map {A A' B B': Type} [COFE A] [COFE A'] [COFE B] [COFE B'] :
     prodO (A' -n> A) (B -n> B') -> (obj A B -n> obj A' B')
-
-  /-- oFunctor map is itself a nonexpansive function -/
-  map_ne (A A' B B': Type) [COFE A] [COFE A'] [COFE B] [COFE B'] : HasNonExpansive (map A A' B B')
-
-  /-- "Bifunctor" id law -/
+  map_ne {A A' B B': Type} [COFE A] [COFE A'] [COFE B] [COFE B'] :
+    HasNonExpansive (@map A A' B B' _ _ _ _)
   map_id (A B : Type) [COFE A] [COFE B] (x : obj A B) :
-    (map A A B B (NonExpansive.cid A, NonExpansive.cid B) x) ≈ x
-
-  /-- "Bifunctor" composition law -/
+    (map (NonExpansive.cid A, NonExpansive.cid B) x) ≈ x
   map_cmp (A A' A'' B B' B'' : Type) [COFE A] [COFE A'] [COFE A''] [COFE B] [COFE B'] [COFE B'']
       (f : A' -n> A) (g : A'' -n> A') (f' : B -n> B') (g' : B' -n> B'') (x : obj A B):
-    map A A'' B B'' (f.ccompose g, g'.ccompose f') x ≈ (map A' A'' B' B'' (g, g') <| map A A' B B' (f, f') x)
+    map (f ⊙ g, g' ⊙ f') x ≈ (map (g, g') <| map (f, f') x)
+
+attribute [instance] oFunctor.obj_ofe
+attribute [instance] oFunctor.map_ne
+
+-- Should I just duplicate the structure instead
+structure oFunctorContractive extends oFunctor where
+  map_contractive (A A' B B') [COFE A] [COFE A'] [COFE B] [COFE B'] : HasContractive (@map A A' B B' _ _ _ _)
+
+-- This is the map I want to use, probably?
+abbrev oFunctor.map' (F : oFunctor) {A A' B B' : Type} [COFE A] [COFE A'] [COFE B] [COFE B'] :
+      prodO (A' -n> A) (B -n> B') -n> (F.obj A B -n> F.obj A' B') :=
+    NonExpansive.lift F.map
+
+abbrev oFunctor.ap (F : oFunctor) (A : Type) [COFE A] : Type := F.obj A A
+
+
+
+
+
+/-
 
 export oFunctor (obj map map_ne map_id map_cmp)
 
@@ -1474,34 +1479,36 @@ attribute [instance] oFunctor.obj_ofe
 attribute [instance] oFunctor.map_ne
 
 /-- An oFunctor where every object is assigned to a COFE -/
-structure ocFunctor extends oFunctor where
+structure cFunctor extends oFunctor where
   /-- The oFunctor assigns every pair of COFE's to a COFE. -/
   obj_cofe (A B : Type) [COFE A] [COFE B] : COFE <| obj A B
-  obj_ofe _ _ _ _ := COFE.toOFE
+  obj_ofe A B _ _ := @COFE.toOFE (obj A B) (obj_cofe A B)
 
-attribute [instance] ocFunctor.obj_cofe
+attribute [instance] cFunctor.obj_cofe
 
-structure oFunctorContractive extends oFunctor where
-  /-- oFunctor map is itself a contractive function -/
-  map_contractive (A A' B B': Type) [COFE A] [COFE A'] [COFE B] [COFE B'] : HasContractive (map A A' B B')
 
-structure ocFunctorContractive extends oFunctorContractive, ocFunctor
+structure cFunctorContractive extends oFunctorContractive, cFunctor
 
 /-- Typeclass for heterogenous composition? I don't want to use FunLike because I have two functions -/
 class OFComp (F1 F2 F3 : Type*) where
   comp : F1 -> F2 -> F3
 
-instance : (OFComp ocFunctor oFunctor oFunctor) where
+instance : (OFComp cFunctor oFunctor oFunctor) where
   comp F1 F2 := sorry
 
-instance : (OFComp ocFunctorContractive oFunctorContractive oFunctorContractive) where
+instance : (OFComp cFunctorContractive oFunctorContractive oFunctorContractive) where
   comp F1 F2 := sorry
 
-instance : (OFComp oFunctorContractive ocFunctorContractive oFunctorContractive) where
+instance : (OFComp oFunctorContractive cFunctorContractive oFunctorContractive) where
   comp F1 F2 := sorry
 
 -- TODO Custom syntax category for OFunctors would be nice
 
+abbrev oFunctor.ap (F : oFunctor) (A : Type) [COFE A] := F.obj A A
+
+
+
+-/
 
 end oFunctor
 
@@ -1754,3 +1761,101 @@ lemma later_map_contractive [OFE A] [OFE B] :
  apply refl
 
 end Later
+
+
+section Iso
+
+structure OFEIso [OFE A] [OFE B] where
+  f : A -n> B
+  g : B -n> A
+  f_g_id x : f (g x) ≈ x
+  g_f_id x : g (f x) ≈ x
+
+end Iso
+
+
+
+section COFESolver
+
+/- ### oFunctor fixpoints
+NOTE: This secion is more or less a straight port of ``cofe_solver.v``. I'm making
+no effort to make the names in this section make more sense or anything because I don't
+really understand the original paper.
+see https://gitlab.mpi-sws.org/iris/iris/blob/master/iris/algebra/cofe_solver.v
+-/
+/-
+structure oFix (F : oFunctor) where
+  t : Type
+  t_COFE : COFE T
+  -- t_iso : OFEIso t t
+attribute [instance] oFix.t_COFE
+
+-/
+
+namespace COFESolver
+variable (F : oFunctor)
+variable [Hinhabited : Inhabited (F.ap unitO)]
+variable (HapCOFE : ∀ {T : Type} [COFE T], COFE (F.ap T))
+
+variable (S : Type) [COFE S]
+#synth COFE (F.ap unitO)
+#synth OFE (F.obj unitO S)
+#synth COFE (F.ap unitO)
+
+
+
+-- variable [Hcofe : ∀ {T} [COFE T], COFE (F.ap T)]
+
+
+-- These are both Hcofe
+/-
+abbrev A' : ℕ -> (T : Type) × (COFE T)
+| 0 => ⟨ unitO, unitO_COFE ⟩
+| Nat.succ n' =>
+  let ⟨ T', T'COFE ⟩ := A' n'
+  ⟨ @F.ap T' T'COFE, Hcofe ⟩
+
+abbrev A (n : ℕ) : Type := Sigma.fst <| @A' F Hcofe n
+
+@[reducible]
+instance (n : ℕ) : COFE (@A F Hcofe n) := Sigma.snd <| @A' F Hcofe n
+
+instance (n : ℕ) : OFE (@A F Hcofe n) := COFE.toOFE
+
+-- #synth Inhabited (A F 1)
+-- #synth COFE (A F 100)
+
+variable (k' : ℕ)
+variable (ff : @NonExpansive (A F k'.succ) (A F k') COFE.toOFE COFE.toOFE)
+variable (gg : @NonExpansive (A F k') (A F k'.succ) COFE.toOFE COFE.toOFE)
+#check @oFunctor.map F (A F k') (A F k'.succ) (A F k') (A F k'.succ) _ _ _ _ (ff, gg)
+
+
+mutual
+
+-- def f : (k : ℕ) -> (A F k) -n> (A F k.succ)
+def f : (k : ℕ) -> (@NonExpansive (A F k'.succ) (A F k') COFE.toOFE COFE.toOFE)
+| 0 => sorry
+| Nat.succ k' => by
+  dsimp
+  apply (@oFunctor.map F _ _ _ _ _ _ _ _ (f k', g k'))
+  -- let X := @oFunctor.map F (A F k') (A F k'.succ) (A F k') (A F k'.succ) _ _ _ _ (sorry, sorry)
+  -- by
+  --   simp [A]
+  --   unfold oFunctor.ap
+  --   simp at X
+  --   sorry
+def g : ℕ -> (A F k.succ) -n> (A F k)
+| 0 => sorry
+| Nat.succ k' => sorry
+
+end
+-/
+
+
+
+
+
+
+end COFESolver
+end COFESolver
