@@ -869,9 +869,22 @@ section COFE
 
 /-! ### COFEs -/
 
+
 class COFE (α : Sort*) extends OFE α where
   lim : Chain α -> α
   completeness : ∀ (n : Nat), ∀ (c : Chain α), (lim c) ≈[n] (c n)
+
+
+
+/-- A particular OFE isntance behaves like a COFE -/
+class COFEClass {α : Sort*} (O : OFE α) where
+  lim : Chain α -> α
+  completeness : ∀ (n : Nat), ∀ (c : Chain α), (lim c) ≈[n] (c n)
+
+instance COFEtoCOFEClass [C : COFE α] : COFEClass C.toOFE where
+  lim := C.lim
+  completeness := C.completeness
+
 
 /-- COFE limit commutes with nonexpansive maps -/
 lemma COFE.lim_map_nonexpansive [COFE α] [COFE β] (f : α -> β) (c : Chain α) (Hf : nonexpansive f) :
@@ -1439,32 +1452,43 @@ section oFunctor
 NOTE: See https://gitlab.mpi-sws.org/iris/iris/blob/master/docs/resource_algebras.md
 -/
 
-structure oFunctor where
-  obj (A B : Type) [COFE A] [COFE B] : Type
-  obj_ofe (A B : Type) [COFE A] [COFE B] : OFE <| obj A B
-  map {A A' B B': Type} [COFE A] [COFE A'] [COFE B] [COFE B'] :
-    prodO (A' -n> A) (B -n> B') -> (obj A B -n> obj A' B')
-  map_ne {A A' B B': Type} [COFE A] [COFE A'] [COFE B] [COFE B'] :
-    HasNonExpansive (@map A A' B B' _ _ _ _)
-  map_id (A B : Type) [COFE A] [COFE B] (x : obj A B) :
+structure oFunctorPre where
+  obj' (A B : Type) (OA : OFE A) (OB : OFE B) [COFEClass OA] [COFEClass OB] : (T : Type) × (OFE T)
+
+abbrev oFunctorPre.obj (F : oFunctorPre) (A B : Type) [CA : OFE A] [CB : OFE B] [COFEClass CA] [COFEClass CB] : Type :=
+  Sigma.fst <| F.obj' A B CA CB
+
+instance (F : oFunctorPre) {A B : Type} [OA : OFE A] [OB : OFE B] [COFEClass OA] [COFEClass OB] : OFE (F.obj A B) :=
+  Sigma.snd <| F.obj' A B OA OB
+
+structure oFunctor extends oFunctorPre where
+  map {A A' B B': Type} [OA : OFE A] [OA' : OFE A'] [OB : OFE B] [OB' : OFE B']
+    [COFEClass OA] [COFEClass OA'] [COFEClass OB] [COFEClass OB'] :
+    prodO (A' -n> A) (B -n> B') -> (tooFunctorPre.obj A B -n> tooFunctorPre.obj A' B')
+  map_ne {A A' B B': Type} [OA : OFE A] [OA' : OFE A'] [OB : OFE B] [OB' : OFE B']
+    [COFEClass OA] [COFEClass OA'] [COFEClass OB] [COFEClass OB'] :
+    HasNonExpansive (@map A A' B B' _ _ _ _ _ _ _ _)
+  map_id (A B : Type) [COFE A] [COFE B] (x : tooFunctorPre.obj A B) :
     (map (NonExpansive.cid A, NonExpansive.cid B) x) ≈ x
   map_cmp (A A' A'' B B' B'' : Type) [COFE A] [COFE A'] [COFE A''] [COFE B] [COFE B'] [COFE B'']
-      (f : A' -n> A) (g : A'' -n> A') (f' : B -n> B') (g' : B' -n> B'') (x : obj A B):
+      (f : A' -n> A) (g : A'' -n> A') (f' : B -n> B') (g' : B' -n> B'') (x : tooFunctorPre.obj A B):
     map (f ⊙ g, g' ⊙ f') x ≈ (map (g, g') <| map (f, f') x)
 
-attribute [instance] oFunctor.obj_ofe
 attribute [instance] oFunctor.map_ne
 
 -- Should I just duplicate the structure instead
 structure oFunctorContractive extends oFunctor where
-  map_contractive (A A' B B') [COFE A] [COFE A'] [COFE B] [COFE B'] : HasContractive (@map A A' B B' _ _ _ _)
+  map_contractive (A A' B B') [OA : OFE A] [OA' : OFE A'] [OB : OFE B] [OB' : OFE B']
+    [COFEClass OA] [COFEClass OA'] [COFEClass OB] [COFEClass OB'] :
+    HasContractive (@map A A' B B' _ _ _ _ _ _ _ _)
 
 -- This is the map I want to use, probably?
-abbrev oFunctor.map' (F : oFunctor) {A A' B B' : Type} [COFE A] [COFE A'] [COFE B] [COFE B'] :
+abbrev oFunctor.map' (F : oFunctor) {A A' B B' : Type} [OA : OFE A] [OA' : OFE A'] [OB : OFE B] [OB' : OFE B']
+    [COFEClass OA] [COFEClass OA'] [COFEClass OB] [COFEClass OB'] :
       prodO (A' -n> A) (B -n> B') -n> (F.obj A B -n> F.obj A' B') :=
     NonExpansive.lift F.map
 
-abbrev oFunctor.ap (F : oFunctor) (A : Type) [COFE A] : Type := F.obj A A
+abbrev oFunctor.ap (F : oFunctor) (A : Type) [O : OFE A] [COFEClass O] : Type := F.obj A A
 
 
 
@@ -1795,62 +1819,55 @@ attribute [instance] oFix.t_COFE
 namespace COFESolver
 variable (F : oFunctor)
 variable [Hinhabited : Inhabited (F.ap unitO)]
-variable (HapCOFE : ∀ {T : Type} [COFE T], COFE (F.ap T))
+variable [HapCOFE : ∀ {T : Type} (O : OFE T) [COFEClass O], @COFEClass (F.ap T) (instOFEObj F.tooFunctorPre)]
 
-variable (S : Type) [COFE S]
-#synth COFE (F.ap unitO)
-#synth OFE (F.obj unitO S)
-#synth COFE (F.ap unitO)
-
-
-
--- variable [Hcofe : ∀ {T} [COFE T], COFE (F.ap T)]
-
-
--- These are both Hcofe
-/-
-abbrev A' : ℕ -> (T : Type) × (COFE T)
-| 0 => ⟨ unitO, unitO_COFE ⟩
+abbrev A' : ℕ -> (T : Type) × (O : OFE T) × (COFEClass O)
+| 0 =>
+  ⟨ unitO, ⟨ COFE.toOFE , COFEtoCOFEClass ⟩ ⟩
 | Nat.succ n' =>
-  let ⟨ T', T'COFE ⟩ := A' n'
-  ⟨ @F.ap T' T'COFE, Hcofe ⟩
+  let ⟨ R, ⟨ ROFE, _ ⟩ ⟩ := A' n'
+  ⟨ F.ap R, ⟨ instOFEObj F.tooFunctorPre, HapCOFE ROFE ⟩ ⟩
 
-abbrev A (n : ℕ) : Type := Sigma.fst <| @A' F Hcofe n
+abbrev A (n : ℕ) : Type := Sigma.fst <| A' F n
 
 @[reducible]
-instance (n : ℕ) : COFE (@A F Hcofe n) := Sigma.snd <| @A' F Hcofe n
+instance AOFE (n : ℕ) : OFE (A F n) := Sigma.fst <| Sigma.snd <| A' F n
 
-instance (n : ℕ) : OFE (@A F Hcofe n) := COFE.toOFE
+@[reducible]
+instance (n : ℕ) : COFEClass (AOFE F n) := Sigma.snd <| Sigma.snd <| A' F n
 
 -- #synth Inhabited (A F 1)
--- #synth COFE (A F 100)
+-- #synth OFE (A F 100)
 
-variable (k' : ℕ)
-variable (ff : @NonExpansive (A F k'.succ) (A F k') COFE.toOFE COFE.toOFE)
-variable (gg : @NonExpansive (A F k') (A F k'.succ) COFE.toOFE COFE.toOFE)
-#check @oFunctor.map F (A F k') (A F k'.succ) (A F k') (A F k'.succ) _ _ _ _ (ff, gg)
-
+-- variable (n : ℕ)
+-- set_option pp.notation false
+-- set_option pp.explicit true
+-- #check (A F n) -n> (A F (n + 1))
+-- @NonExpansive (@A F HapCOFE n)
+--   (@A F HapCOFE (@HAdd.hAdd Nat Nat Nat (@instHAdd Nat instAddNat) n (@OfNat.ofNat Nat 1 (instOfNatNat 1))))
+--   (@AOFE F HapCOFE n)
+--   (@instOFEObj F.tooFunctorPre (@Sigma.fst Type (fun T => @Sigma (OFE T) fun O => @COFEClass T O) (@A' F HapCOFE n))
+--     (@Sigma.fst Type (fun T => @Sigma (OFE T) fun O => @COFEClass T O) (@A' F HapCOFE n))
+--     (@Sigma.fst (OFE (@A' F HapCOFE n).1) (fun O => @COFEClass (@A' F HapCOFE n).1 O) (@A' F HapCOFE n).2)
+--     (@Sigma.fst (OFE (@A' F HapCOFE n).1) (fun O => @COFEClass (@A' F HapCOFE n).1 O) (@A' F HapCOFE n).2)
+--     (@Sigma.snd (OFE (@A' F HapCOFE n).1) (fun O => @COFEClass (@A' F HapCOFE n).1 O) (@A' F HapCOFE n).2)
+--     (@Sigma.snd (OFE (@A' F HapCOFE n).1) (fun O => @COFEClass (@A' F HapCOFE n).1 O) (@A' F HapCOFE n).2)) : Type
 
 mutual
 
--- def f : (k : ℕ) -> (A F k) -n> (A F k.succ)
-def f : (k : ℕ) -> (@NonExpansive (A F k'.succ) (A F k') COFE.toOFE COFE.toOFE)
-| 0 => sorry
-| Nat.succ k' => by
-  dsimp
-  apply (@oFunctor.map F _ _ _ _ _ _ _ _ (f k', g k'))
-  -- let X := @oFunctor.map F (A F k') (A F k'.succ) (A F k') (A F k'.succ) _ _ _ _ (sorry, sorry)
-  -- by
-  --   simp [A]
-  --   unfold oFunctor.ap
-  --   simp at X
-  --   sorry
-def g : ℕ -> (A F k.succ) -n> (A F k)
-| 0 => sorry
-| Nat.succ k' => sorry
+def f (k : ℕ) : (A F k) -n> (A F (k + 1)) :=
+  match k with
+  | 0 => NonExpansive.cconst default
+  | Nat.succ k => F.map (g k, f k)
+
+def g (k : ℕ) : (A F (k + 1)) -n> (A F k) :=
+  match k with
+  | 0 => NonExpansive.cconst ()
+  | Nat.succ k => F.map (f k, g k)
 
 end
--/
+
+
 
 
 
