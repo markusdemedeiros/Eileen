@@ -1867,6 +1867,64 @@ def g (k : ℕ) : (A F (k + 1)) -n> (A F k) :=
 
 end
 
+def f_S (k : ℕ) (x : A F (k + 1)) : f F (k + 1) x = F.map (g F k, f F k) x := by rfl
+
+def g_S (k : ℕ) (x : A F (k + 1 + 1)) : g F (k + 1) x = F.map (f F k, g F k) x := by rfl
+
+lemma gf (k : ℕ) (x : A F k) : g F k (f F k x) ≈ x := by
+  sorry
+
+lemma fg (k : ℕ) (x : A F (k + 1 + 1)) : f F (k + 1) (g F (k + 1) x) ≈[k] x := by
+  sorry
+
+
+structure Tower where
+  car (k : ℕ) : A F k
+  g_tower (k : ℕ) : g F k (car (k + 1)) ≈ car k
+
+export Tower (g_tower)
+
+instance : OFE (Tower F) where
+  r TX TY := ∀ k, TX.car k ≈ TY.car k
+  ir n TX TY := ∀ k, TX.car k ≈[n] TY.car k
+  iseqv := sorry
+  isieqv := sorry
+  mono_index := sorry
+  refines := sorry
+
+def tower_chain (c : Chain (Tower F)) (k : ℕ) : Chain (A F k) where
+  car i := (c i).car k
+  is_cauchy := sorry
+
+instance : COFE (Tower F) where
+  lim c :=
+    Tower.mk (fun i => COFEClass.lim <| tower_chain F c i)
+    sorry
+  completeness :=
+    sorry
+
+
+mutual
+
+def ff {k : ℕ} (i : ℕ) : (A F k) -n> (A F (k + i)) :=
+  match i with
+  | 0 => NonExpansive.cid _
+  | Nat.succ i => (f F (k + i)) ⊙ (ff i)
+
+def gg {k : ℕ} (i : ℕ) : (A F (k + i)) -n> (A F k) :=
+  match i with
+  | 0 => NonExpansive.cid _
+  | Nat.succ i => (gg i) ⊙ (g F (k + i))
+
+end
+
+lemma ggff {k i : ℕ} (x : A F k) : gg F i (ff F i x) ≈ x := sorry
+
+lemma f_tower (k : ℕ) (X : Tower F) : f F (k + 1) (X.car (k + 1)) ≈[k] X.car (k + 1 + 1) := sorry
+
+lemma ff_tower (k i : ℕ) (X : Tower F) : ff F i (X.car (k + 1)) ≈[k] X.car (k + 1 + i) := sorry
+
+lemma gg_tower (k i : ℕ) (X : Tower F) : gg F i (X.car (k + i)) ≈ X.car k := sorry
 
 
 
