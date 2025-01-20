@@ -1477,10 +1477,10 @@ structure oFunctor extends oFunctorPre where
 attribute [instance] oFunctor.map_ne
 
 -- Should I just duplicate the structure instead
-structure oFunctorContractive extends oFunctor where
+class oFunctorContractive (F : oFunctor) where
   map_contractive (A A' B B') [OA : OFE A] [OA' : OFE A'] [OB : OFE B] [OB' : OFE B']
     [COFEClass OA] [COFEClass OA'] [COFEClass OB] [COFEClass OB'] :
-    HasContractive (@map A A' B B' _ _ _ _ _ _ _ _)
+    HasContractive (@F.map A A' B B' _ _ _ _ _ _ _ _)
 
 -- This is the map I want to use, probably?
 abbrev oFunctor.map' (F : oFunctor) {A A' B B' : Type} [OA : OFE A] [OA' : OFE A'] [OB : OFE B] [OB' : OFE B']
@@ -1490,49 +1490,47 @@ abbrev oFunctor.map' (F : oFunctor) {A A' B B' : Type} [OA : OFE A] [OA' : OFE A
 
 abbrev oFunctor.ap (F : oFunctor) (A : Type) [O : OFE A] [COFEClass O] : Type := F.obj A A
 
+/-- A cFunctor is an oFunctor with range in COFE, so it can be composed -/
+class cFunctor (F : oFunctor) where
+  COFElike (OA : OFE A) (OB : OFE B) [COFEClass OA] [COFEClass OB] :
+    @COFEClass _ (Sigma.snd <| F.obj' A B OA OB)
+
+attribute [instance] cFunctor.COFElike
+
+-- what a mess
+def cFunctor_oFunctor_comp (F1 F2 : oFunctor) [cFunctor F1] : oFunctor where
+  obj' A B OA OB _ _ :=
+    @F2.obj' (F1.obj B A) (F1.obj A B)
+      (Sigma.snd <| F1.obj' B A OB OA) (Sigma.snd <| F1.obj' A B OA OB)
+      (cFunctor.COFElike _ _) (cFunctor.COFElike _ _)
+  map := @fun A A' B B' OA OA' OB OB' _ _ _ _ fg => by
+    apply F2.map
+    apply (F1.map (fg.2, fg.1), F1.map (fg.1, fg.2))
+  map_id := by
+    simp
+    intros A B _ _ x
+    apply symm
+    apply _root_.trans
+    · apply symm
+      sorry
+    apply symm
+
+    sorry
+  map_ne := by
+    sorry
+  map_cmp := sorry
+
+instance (F1 F2 : oFunctor) [cFunctor F1] [oFunctorContractive F1] :
+    oFunctorContractive (cFunctor_oFunctor_comp F1 F2) where
+  map_contractive := sorry
+
+instance (F1 F2 : oFunctor) [cFunctor F1] [oFunctorContractive F2] :
+    oFunctorContractive (cFunctor_oFunctor_comp F1 F2) where
+  map_contractive := sorry
 
 
 
 
-/-
-
-export oFunctor (obj map map_ne map_id map_cmp)
-
-
-attribute [instance] oFunctor.obj_ofe
-attribute [instance] oFunctor.map_ne
-
-/-- An oFunctor where every object is assigned to a COFE -/
-structure cFunctor extends oFunctor where
-  /-- The oFunctor assigns every pair of COFE's to a COFE. -/
-  obj_cofe (A B : Type) [COFE A] [COFE B] : COFE <| obj A B
-  obj_ofe A B _ _ := @COFE.toOFE (obj A B) (obj_cofe A B)
-
-attribute [instance] cFunctor.obj_cofe
-
-
-structure cFunctorContractive extends oFunctorContractive, cFunctor
-
-/-- Typeclass for heterogenous composition? I don't want to use FunLike because I have two functions -/
-class OFComp (F1 F2 F3 : Type*) where
-  comp : F1 -> F2 -> F3
-
-instance : (OFComp cFunctor oFunctor oFunctor) where
-  comp F1 F2 := sorry
-
-instance : (OFComp cFunctorContractive oFunctorContractive oFunctorContractive) where
-  comp F1 F2 := sorry
-
-instance : (OFComp oFunctorContractive cFunctorContractive oFunctorContractive) where
-  comp F1 F2 := sorry
-
--- TODO Custom syntax category for OFunctors would be nice
-
-abbrev oFunctor.ap (F : oFunctor) (A : Type) [COFE A] := F.obj A A
-
-
-
--/
 
 end oFunctor
 
@@ -1818,6 +1816,7 @@ attribute [instance] oFix.t_COFE
 
 namespace COFESolver
 variable (F : oFunctor)
+variable [oFunctorContractive F]
 variable [Hinhabited : Inhabited (F.ap unitO)]
 variable [HapCOFE : ∀ {T : Type} (O : OFE T) [COFEClass O], @COFEClass (F.ap T) (instOFEObj F.tooFunctorPre)]
 
@@ -1931,7 +1930,7 @@ lemma gg_tower (k i : ℕ) (X : Tower F) : gg F i (X.car (k + i)) ≈ X.car k :=
 
 lemma Tower.car_ne (k : ℕ) : nonexpansive (fun T : Tower F => T.car k) := sorry
 
-def Tower.project (x : ℕ) : Tower F -n> A F k := NonExpansive.mk _ (Tower.car_ne F k)
+def Tower.project (k : ℕ) : Tower F -n> A F k := NonExpansive.mk _ (Tower.car_ne F k)
 
 def coerce {i j : ℕ} (H : i = j) : A F i -n> A F j := by
   -- Make into a proof term
