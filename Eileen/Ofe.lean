@@ -1828,41 +1828,41 @@ abbrev A' : ℕ -> (T : Type) × (COFE T)
   -- let Z : COFEMixin (F.ap R) := dcFunctorPre.obj_diag_cofe
   -- Z.toCOFE
 
-abbrev A (n : ℕ) : Type := Sigma.fst <| A' F n
+abbrev A (F : oFunctorStruct) [oFunctorContractive F] [dcFunctorPre F] (n : ℕ) : Type := Sigma.fst <| A' F n
 
 @[reducible]
-instance ACOFE (n : ℕ) : COFE (A F n) := Sigma.snd <| A' F n
+instance ACOFE {F : oFunctorStruct} [oFunctorContractive F] [dcFunctorPre F] (n : ℕ) : COFE (A F n) := Sigma.snd <| A' F n
+
+-- FIXME: Goofy, why doesn't ACOFE alone do the trick?
+@[reducible]
+instance {F : oFunctorStruct} [oFunctorContractive F] [dcFunctorPre F] (k : ℕ) : COFE (A F (k.succ)) :=
+  ACOFE _
 
 -- #check (ACOFE F 10 : COFE (A F 10))
 mutual
 
-def f (k : ℕ) : (A F k) -n> (A F (k + 1)) :=
+def f (k : ℕ) : (A F k) -n> (A F (k.succ)) :=
   match k with
   | 0 => NonExpansive.cconst default
   | Nat.succ k =>
-    -- FIX instances. Why can it synthesize COFE up top, but not here?
-    let L := @F.map (A F k) (A F k.succ) (A F k) (A F k.succ) (ACOFE F _) (ACOFE F _) (ACOFE F _) (ACOFE F _) (g k, f k)
-    NonExpansive.lift <| L
+    NonExpansive.lift <| F.map (g k, f k)
 
 def g (k : ℕ) : (A F (k + 1)) -n> (A F k) :=
   match k with
   | 0 => NonExpansive.cconst ()
   | Nat.succ k =>
-    let L := @F.map _ _ _ _ (ACOFE _ _) (ACOFE _ _) (ACOFE _ _) (ACOFE _ _) (f k, g k)
-    NonExpansive.lift <| L
+    NonExpansive.lift <| F.map (f k, g k)
 end
 
--- FIXME: Synth of ACOFE
-def f_S (k : ℕ) (x : A F (k + 1)) : f F (k + 1) x = @F.map _ _ _ _ (ACOFE _ _) (ACOFE _ _) (ACOFE _ _) (ACOFE _ _) (g F k, f F k) x := by rfl
+def f_S (k : ℕ) (x : A F (k + 1)) : f F (k + 1) x = F.map (g F k, f F k) x := by rfl
 
-def g_S (k : ℕ) (x : A F (k + 1 + 1)) : g F (k + 1) x = @F.map _ _ _ _ (ACOFE _ _) (ACOFE _ _) (ACOFE _ _) (ACOFE _ _) (f F k, g F k) x := by rfl
+def g_S (k : ℕ) (x : A F (k + 1 + 1)) : g F (k + 1) x = F.map (f F k, g F k) x := by rfl
 
 lemma gf (k : ℕ) (x : A F k) : g F k (f F k x) ≈ x := by
   sorry
 
 lemma fg (k : ℕ) (x : A F (k + 1 + 1)) : f F (k + 1) (g F (k + 1) x) ≈[k] x := by
   sorry
-
 
 structure Tower where
   car (k : ℕ) : A F k
