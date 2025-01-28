@@ -1818,6 +1818,8 @@ attribute [instance] oFix.t_COFE
 -/
 
 namespace COFESolver
+
+/-
 variable (F : cFunctorContractive)
 variable [Hinhabited : Inhabited (F.obj unitO unitO)]
 
@@ -1833,21 +1835,20 @@ abbrev A (n : ℕ) : Type := Sigma.fst <| A' F n
 @[reducible]
 instance ACOFE (n : ℕ) : COFE (A F n) := Sigma.snd <| A' F n
 
+
 mutual
 
 def f (k : ℕ) : (A F k) -n> (A F (k + 1)) :=
   match k with
   | 0 => NonExpansive.cconst default
-  | Nat.succ k => sorry -- @F.map _ _ _ _ (ACOFE F _ ) (ACOFE F _ ) (ACOFE F _ ) (ACOFE F _ ) (g k) (f k) sorry sorry
+  | Nat.succ k => F.map (g k) (f k)
 
 def g (k : ℕ) : (A F (k + 1)) -n> (A F k) :=
   match k with
   | 0 => NonExpansive.cconst ()
-  | Nat.succ k => sorry -- F.map (f k, g k)
+  | Nat.succ k => F.map (f k, g k)
 
 end
-
-/-
 
 
 
