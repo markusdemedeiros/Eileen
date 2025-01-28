@@ -1833,27 +1833,29 @@ abbrev A (n : ℕ) : Type := Sigma.fst <| A' F n
 @[reducible]
 instance ACOFE (n : ℕ) : COFE (A F n) := Sigma.snd <| A' F n
 
+-- #check (ACOFE F 10 : COFE (A F 10))
 mutual
 
 def f (k : ℕ) : (A F k) -n> (A F (k + 1)) :=
   match k with
   | 0 => NonExpansive.cconst default
-  | Nat.succ k => NonExpansive.lift <| F.nemap (g k, f k)
+  | Nat.succ k =>
+    -- FIX instances. Why can it synthesize COFE up top, but not here?
+    let L := @F.map (A F k) (A F k.succ) (A F k) (A F k.succ) (ACOFE F _) (ACOFE F _) (ACOFE F _) (ACOFE F _) (g k, f k)
+    NonExpansive.lift <| L
 
 def g (k : ℕ) : (A F (k + 1)) -n> (A F k) :=
   match k with
   | 0 => NonExpansive.cconst ()
-  | Nat.succ k => sorry -- F.map (f k, g k)
-
+  | Nat.succ k =>
+    let L := @F.map _ _ _ _ (ACOFE _ _) (ACOFE _ _) (ACOFE _ _) (ACOFE _ _) (f k, g k)
+    NonExpansive.lift <| L
 end
 
+-- FIXME: Synth of ACOFE
+def f_S (k : ℕ) (x : A F (k + 1)) : f F (k + 1) x = @F.map _ _ _ _ (ACOFE _ _) (ACOFE _ _) (ACOFE _ _) (ACOFE _ _) (g F k, f F k) x := by rfl
 
-/-
-
-
-def f_S (k : ℕ) (x : A F (k + 1)) : f F (k + 1) x = F.map (g F k, f F k) x := by rfl
-
-def g_S (k : ℕ) (x : A F (k + 1 + 1)) : g F (k + 1) x = F.map (f F k, g F k) x := by rfl
+def g_S (k : ℕ) (x : A F (k + 1 + 1)) : g F (k + 1) x = @F.map _ _ _ _ (ACOFE _ _) (ACOFE _ _) (ACOFE _ _) (ACOFE _ _) (f F k, g F k) x := by rfl
 
 lemma gf (k : ℕ) (x : A F k) : g F k (f F k x) ≈ x := by
   sorry
@@ -1880,16 +1882,20 @@ def tower_chain (c : Chain (Tower F)) (k : ℕ) : Chain (A F k) where
   car i := (c i).car k
   is_cauchy := sorry
 
--- instance : COFE (Tower F) where
---   lim c :=
---     Tower.mk (fun i => COFEClass.lim <| tower_chain F c i)
---     sorry
---   completeness :=
---     sorry
+/-
+instance : COFE (Tower F) where
+  lim c :=
+    Tower.mk (fun i => COFE.lim <| tower_chain F c i)
+    sorry
+  completeness :=
+    sorry
+-/
 
-instance : COFEClass (instOFETower F) where
-  lim c := Tower.mk (fun i => COFEClass.lim <| tower_chain F c i) sorry
+def TowerCOFEMixin : COFEMixin (Tower F) where
+  lim c := Tower.mk (fun i => COFE.lim <| tower_chain F c i) sorry
   completeness := sorry
+
+instance : COFE (Tower F) := COFEMixin.toCOFE _ (TowerCOFEMixin F)
 
 mutual
 
@@ -1958,7 +1964,8 @@ def unfold_chain (X : Tower F) : Chain (F.ap (Tower F)) where
   car n := F.map (Tower.project F n, Tower.embed F n) (X.car (n + 1))
   is_cauchy := sorry
 
-def unfold (X : Tower F) : F.ap (Tower F) := COFEClass.lim (unfold_chain F X)
+def unfold (X : Tower F) : F.ap (Tower F) :=
+  COFEMixin.lim dcFunctorPre.obj_diag_cofe (unfold_chain F X)
 
 lemma unfold_ne : nonexpansive (unfold F) := by sorry
 
@@ -1968,6 +1975,5 @@ def fold (X : F.ap (Tower F)) : Tower F where
 
 lemma fold_ne : nonexpansive (fold F) := by sorry
 
--/
 end COFESolver
 end COFESolver
