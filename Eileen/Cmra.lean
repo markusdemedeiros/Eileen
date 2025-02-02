@@ -74,12 +74,12 @@ def exclusive [Op α] [IValid α] : Pred α :=
   fun x => ∀ y, ¬ ✓[0] (x ⬝ y)
 
 @[simp]
-def icancelable [Op α] [IRel α] [IValid α] (n : ℕ) (y z : α) : Pred α :=
+def icancellable [Op α] [IRel α] [IValid α] (n : ℕ) (y z : α) : Pred α :=
   fun x => ✓[n] (x ⬝ y) -> (x ⬝ y) ≈[n] (x ⬝ z) -> y ≈[n] z
 
 @[simp]
-def cancelable [Op α] [IRel α] [IValid α] : Pred α :=
-  fun x => ∀ n y z, icancelable n y z x
+def cancellable [Op α] [IRel α] [IValid α] : Pred α :=
+  fun x => ∀ n y z, icancellable n y z x
 
 @[simp]
 def id_free [Op α] [IRel α] [IValid α] : Pred α :=
@@ -109,6 +109,10 @@ class CMRA (α : Type*) extends OFE α, CommSemigroup α, Valid α, IValid α wh
     ✓[n] x -> (x ≈[n] y1 ⬝ y2) -> ∃ (x1 x2 : α), x ≈ x1 ⬝ x2 ∧ x1 ≈[n] y1 ∧ x2 ≈[n] y2
   maximal_idempotent_axiom (x : α) (n : ℕ) (_ : ✓[n] x) : MI x n
 
+lemma CMRA.op_comm [CMRA α] (x y : α) : (x ⬝ y) = (y ⬝ x) := by
+  apply mul_comm x y
+
+
 export CMRA (op_nonexpansive valid_irel_imp_proper valid_iff_forall_ivalid
              ivalid_op_left valid_of_validS ivalid_irel_prod maximal_idempotent_axiom)
 
@@ -133,11 +137,193 @@ variable (α β γ : Type*) [CMRA α] [CMRA β] [CMRA γ]
 
 -- TODO Setoid lemmas
 
+lemma op_equiv_equiv_equiv_proper : is_proper2 rel rel rel (op : α -> α -> α) := by
+  intro _ _ _ _ H1 H2
+  apply rel_of_forall_irel
+  intro _
+  apply _root_.trans
+  · apply op_nonexpansive
+    apply forall_irel_of_rel
+    apply H2
+  -- FIXME: What the heck is going on here?
+  rename_i x1 y1 x2 y2 _
+  unfold op
+  have C1 := @mul_comm α _ x1 y2
+  have C2 := @mul_comm α _ y1 y2
+  unfold instHMul at C1
+  unfold instHMul at C2
+  simp at C1 C2
+  rw [C1, C2]
+  clear C1 C2
+  apply _root_.trans
+  · apply op_nonexpansive
+    apply forall_irel_of_rel
+    apply H1
+  apply refl
+
+lemma ivalid_irel_iff_proper n : is_proper1 (irel n) (fun x y => x <-> y) (@ivalid α _ n) := by
+  intro _ _ _
+  apply Iff.intro
+  · apply valid_irel_imp_proper
+    trivial
+  · apply valid_irel_imp_proper
+    apply symm
+    trivial
+
+lemma ivalid_rel_iff_proper n : is_proper1 rel (fun x y => x <-> y) (@ivalid α _ n) := by
+  intro _ _ _
+  apply ivalid_irel_iff_proper
+  apply forall_irel_of_rel
+  trivial
+
 lemma valid_of_forall_ivalid (x : α) : (∀ n, ✓[n] x) -> ✓ x := by
   apply (valid_iff_forall_ivalid _).mpr
 
-lemma ivalid_of_forall_valid (x : α) : ✓ x -> (∀ n, ✓[n] x) := by
+lemma forall_ivalid_of_valid (x : α) : ✓ x -> (∀ n, ✓[n] x) := by
   apply (valid_iff_forall_ivalid _).mp
+
+-- FIXME: Simplify
+lemma valid_rel_iff_proper : is_proper1 rel (fun x y => x <-> y) (@valid α _) := by
+  intro x1 y1 H
+  apply Iff.intro
+  · intro H'
+    apply valid_of_forall_ivalid
+    intro n
+    apply forall_ivalid_of_valid at H'
+    have X := @ivalid_rel_iff_proper _ _ n x1 y1 H
+    simp at X
+    apply X.mp
+    apply H'
+  · intro H'
+    apply valid_of_forall_ivalid
+    intro n
+    apply forall_ivalid_of_valid at H'
+    have X := @ivalid_rel_iff_proper _ _ n y1 x1 ?G1
+    case G1 =>
+      apply symm
+      trivial
+    simp at X
+    apply X.mp
+    apply H'
+
+lemma iincluded_irel_irel_iff_proper n : is_proper2 (irel n) (irel n) (fun x y => x <-> y) (@iincluded α _ _ n) := by
+  intro x1 y1 x2 y2 H1 H2
+  apply Iff.intro
+  · unfold iincluded
+    intro H
+    rcases H with ⟨ z, Hz ⟩
+    exists z
+    apply _root_.trans
+    · apply symm
+      apply H2
+    apply _root_.trans
+    · apply Hz
+    rw [mul_comm x1 z]
+    rw [mul_comm y1 z]
+    apply op_nonexpansive
+    trivial
+  · unfold iincluded
+    intro H
+    rcases H with ⟨ z, Hz ⟩
+    exists z
+    apply _root_.trans
+    · apply H2
+    apply _root_.trans
+    · apply Hz
+    rw [mul_comm x1 z]
+    rw [mul_comm y1 z]
+    apply op_nonexpansive
+    apply symm
+    trivial
+
+lemma iincluded_rel_rel_iff_proper n : is_proper2 rel rel (fun x y => x <-> y) (@iincluded α _ _ n) := by
+  intros x1 y1 x2 y2 H1 H2
+  apply iincluded_irel_irel_iff_proper
+  · apply forall_irel_of_rel
+    trivial
+  · apply forall_irel_of_rel
+    trivial
+
+lemma forall_iincluded_of_included (x y : α) (H : x ≲ y) : ∀ n, x ≲[n] y := by
+  intro n
+  rcases H with ⟨ z, Hz ⟩
+  exists z
+  apply forall_irel_of_rel
+  trivial
+
+lemma included_rel_rel_iff_proper : is_proper2 rel rel (fun x y => x <-> y) (@included α _ _) := by
+  intros x1 y1 x2 y2 H1 H2
+  apply Iff.intro
+  · intro H
+    rcases H with ⟨ z, Hz ⟩
+    exists z
+    apply _root_.trans
+    · apply symm
+      apply H2
+    apply _root_.trans
+    · apply Hz
+    rw [mul_comm x1 z]
+    rw [mul_comm y1 z]
+    apply op_equiv_equiv_equiv_proper
+    · apply refl
+    · apply H1
+  · intro H
+    rcases H with ⟨ z, Hz ⟩
+    exists z
+    apply _root_.trans
+    · apply H2
+    apply _root_.trans
+    · apply Hz
+    rw [mul_comm x1 z]
+    rw [mul_comm y1 z]
+    apply op_equiv_equiv_equiv_proper
+    · apply refl
+    · apply symm
+      apply H1
+
+-- TODO opM nonexpansive, rel rel rel proper, (need option OFE)s
+
+lemma idempotent_rel_iff_proper : is_proper1 rel (fun x y => x <-> y) (@idempotent α _ _) := by
+  intro x y H
+  unfold idempotent
+  apply Iff.intro
+  · intro H'
+    apply symm
+    apply _root_.trans
+    · apply symm
+      apply H
+    apply _root_.trans
+    · apply symm
+      apply H'
+    apply op_equiv_equiv_equiv_proper
+    · apply H
+    · apply H
+  · intro H'
+    apply symm
+    apply _root_.trans
+    · apply H
+    apply _root_.trans
+    · apply symm
+      apply H'
+    apply op_equiv_equiv_equiv_proper
+    · apply symm
+      apply H
+    · apply symm
+      apply H
+
+-- lemma exclusive_rel_iff_proper : is_proper1 rel (fun x y => x <-> y) (@exclusive α _ _) := by
+--   intro x y H
+--   unfold exclusive
+--   apply Iff.intro
+--   · intro H'
+--     sorry
+--   sorry
+
+-- lemma cancellable_rel_iff_proper : is_proper1 rel (fun x y => x <-> y) (@cancellable α _ _ _) := by
+--   sorry
+--
+-- lemma id_free_rel_iff_proper : is_proper1 rel (fun x y => x <-> y) (@id_free α _ _ _) := by
+--   sorry
 
 lemma op_opM_assoc (x y : α) (z : Option α) : opM (x ⬝ y) z = x ⬝ (opM y z) := by
   cases z <;> simp [opM, mul_assoc]
@@ -157,16 +343,13 @@ lemma valid_op_left (x y : α) : ✓(x ⬝ y) -> ✓x := by
   apply valid_of_forall_ivalid
   intro
   apply ivalid_op_left
-  apply ivalid_of_forall_valid
+  apply forall_ivalid_of_valid
   trivial
 
 lemma valid_op_right (x y : α) : ✓(x ⬝ y) -> ✓y := by
   rw [mul_comm]
   apply valid_op_left
 
-
--- def exclusive [Op α] [IValid α] : Pred α :=
---   fun x => ∀ y, ¬ ✓[0] (x ⬝ y)
 
 lemma exclusive_0_left (x y : α) (H : exclusive x) : ¬ ✓[0] (x ⬝ y) := by
   apply H
@@ -175,10 +358,20 @@ lemma exclusive_0_right (x y : α) (H : exclusive y) : ¬ ✓[0] (x ⬝ y) := by
   rw [mul_comm]
   apply H
 
+lemma exclusive_i_left (x y : α) (n : ℕ) (H : exclusive x) : ¬ ✓[n] (x ⬝ y) := by
+  intro K
+  apply (H y)
+  apply (ivalid_le α _ 0 n K (by simp))
+
+lemma exclusive_i_right (x y : α) (n : ℕ) (H : exclusive y) : ¬ ✓[n] (x ⬝ y) := by
+  rw [mul_comm]
+  apply exclusive_i_left
+  trivial
+
 lemma exclusive_left (x y : α) (H : exclusive x) : ¬ ✓(x ⬝ y) := by
   intro H'
   apply H
-  apply ivalid_of_forall_valid
+  apply forall_ivalid_of_valid
   apply H'
 
 lemma exclusive_right (x y : α) (H : exclusive y) : ¬ ✓(x ⬝ y) := by
@@ -196,14 +389,26 @@ lemma exclusive_opM n (x : α) (H : exclusive x) my (H' : ✓[n] (opM x my)) : m
   · apply Nat.zero_le
 
 lemma exclusive_includedN n (x y : α) (H : exclusive x) (H' : x ≲[n] y) : ¬ ✓[n] y := by
-  -- Do the proper instances
-  rcases H' with ⟨ w, _ ⟩
-  -- exclusive_left
-  sorry
+  rcases H' with ⟨ w, Hw ⟩
+  intro H''
+  have Z := (@ivalid_irel_iff_proper α _ n (x * w) y ?G1)
+  case G1 =>
+    apply symm
+    trivial
+  apply Z.mpr at H''
+  apply (@exclusive_i_left α _ _ _ _ H H'')
 
 lemma exclusive_included (x y : α) (H : exclusive x) (H' : x ≲ y) : ¬ ✓y := by
-  -- Do the proper instances
-  sorry
+  rcases H' with ⟨ w, Hw ⟩
+  intro H''
+  have Z := (@valid_rel_iff_proper α _ (x * w) y ?G1)
+  case G1 =>
+    apply symm
+    trivial
+  apply Z.mpr at H''
+  apply (@exclusive_left α _ _ _ H H'')
+
+
 
 end CMRA
 

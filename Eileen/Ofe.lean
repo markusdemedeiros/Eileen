@@ -1525,11 +1525,35 @@ class oFunctorContractive (F : oFunctorStruct) extends oFunctor F where
 --     @NonExpansive (F2.obj B' A') (F2.obj B A) oFunctorPre.obj_ofe oFunctorPre.obj_ofe =  @NonExpansive (F2.obj B' A') (F2.obj B A) COFE.toOFE COFE.toOFE := by
 --   rfl
 
-def oFunctorStruct.comp (F1 F2 : oFunctorStruct) [oFunctorPre F1] [oFunctorPreLawful F2] [cFunctorPre F2]:
+def oFunctorStruct.comp (F1 F2 : oFunctorStruct) [oFunctorPreLawful F1] [oFunctorPreLawful F2] [cFunctorPre F2]:
     oFunctorStruct where
   obj A B := F1.obj (F2.obj B A) (F2.obj A B)
-  map fg := F1.map (NonExpansive.lift <| F2.map (fg.2, fg.1), NonExpansive.lift <| F2.map (fg.1, fg.2))
+  map fg := F1.nemap (NonExpansive.lift <| F2.map (fg.2, fg.1), NonExpansive.lift <| F2.map (fg.1, fg.2))
 
+instance (F1 F2 : oFunctorStruct) [oFunctorPreLawful F1] [oFunctorPreLawful F2] [cFunctorPre F2] : oFunctorPre (F1.comp F2) where
+  obj_ofe := sorry
+
+-- set_option pp.all true
+
+instance (F1 F2 : oFunctorStruct) [oFunctor F1] [oFunctorPreLawful F2] [cFunctorPre F2] : oFunctorPreLawful (F1.comp F2) where
+  map_pointwise_ne := by
+    intros
+    rename_i f
+    apply HasNonExpansive.mk
+    let Z : HasNonExpansive (F1.map f) := oFunctorPreLawful.map_pointwise_ne f
+    let Y := @oFunctorPreLawful.map_pointwise_ne  F1 _ _ _ _ _ _ _ _ _ (NonExpansive.lift (F2.map (f.snd, f.fst)), NonExpansive.lift (F2.map (f.fst, f.snd)))
+    rcases F1 with ⟨ F1_obj, F1_mor ⟩
+    rcases F2 with ⟨ F2_obj, F2_mor ⟩
+    simp [DFunLike.coe, oFunctorStruct.comp, oFunctorStruct.nemap, NonExpansive.lift, oFunctorStruct.map] -- NonExpansive.lift]
+    intro n x y H
+    rcases Y with ⟨ y' ⟩
+    simp_all [DFunLike.coe, oFunctorStruct.comp, oFunctorStruct.nemap, NonExpansive.lift, oFunctorStruct.map] -- NonExpansive.lift]
+    let y'' := @y' n x y
+    -- whut
+    sorry
+  map_id := by
+    sorry
+  map_cmp := sorry
 
 end oFunctor
 
