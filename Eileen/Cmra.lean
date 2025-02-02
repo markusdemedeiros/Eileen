@@ -409,6 +409,101 @@ lemma exclusive_included (x y : α) (H : exclusive x) (H' : x ≲ y) : ¬ ✓y :
   apply (@exclusive_left α _ _ _ H H'')
 
 
+instance : IsTrans α included where
+  trans a b c := by
+    unfold included
+    intro A B
+    rcases A with ⟨ z1, Hz1 ⟩
+    rcases B with ⟨ z2, Hz2 ⟩
+    exists (z1 * z2)
+    apply _root_.trans
+    · apply Hz2
+    apply _root_.trans
+    · apply op_equiv_equiv_equiv_proper
+      · apply Hz1
+      · apply refl
+    unfold op
+    rw [<- mul_assoc]
+    apply refl
+
+instance (n : ℕ) : IsTrans α (iincluded n) where
+  trans a b c := by
+    unfold iincluded
+    intro A B
+    rcases A with ⟨ z1, Hz1 ⟩
+    rcases B with ⟨ z2, Hz2 ⟩
+    exists (z1 * z2)
+    apply _root_.trans
+    · apply Hz2
+    apply _root_.trans
+    · rw [mul_comm]
+      apply op_nonexpansive
+      · apply Hz1
+    unfold op
+    rw [<- mul_assoc]
+    rw [mul_comm _ z2]
+    apply refl
+
+lemma valid_included_valid (x y : α) (H : ✓ y) (H' : x ≲ y) : ✓ x := by
+  rcases H'  with ⟨ z, Hz ⟩
+  apply (@valid_rel_iff_proper α _ y (x * z) Hz).mp at H
+  apply valid_op_left
+  trivial
+
+lemma ivalid_iincluded_ivalid (n : ℕ) (x y : α) (H : ✓[n] y) (H' : x ≲[n] y) : ✓[n] x := by
+  rcases H'  with ⟨ z, Hz ⟩
+  apply (@ivalid_irel_iff_proper α _ _ y (x * z) Hz).mp at H
+  apply ivalid_op_left
+  trivial
+
+lemma ivalid_included_ivalid (n : ℕ) (x y : α) (H : ✓[n] y) (H' : x ≲ y) : ✓[n] x := by
+  rcases H'  with ⟨ z, Hz ⟩
+  have Z := @ivalid_irel_iff_proper α _ n y (x * z) ?G1
+  case G1 =>
+    apply forall_irel_of_rel
+    trivial
+  apply Z.mp at H
+  apply ivalid_op_left
+  trivial
+
+lemma iincluded_le_mono (n m : ℕ) (x y : α) (H : x ≲[n] y) (H' : m ≤ n) : x ≲[m] y := by
+  rcases H with ⟨ z, Hz ⟩
+  exists z
+  apply irel_le_mono H' Hz
+
+lemma iincluded_S (n : ℕ) (x y : α) (H : x ≲[n.succ] y) : x ≲[n] y := by
+  apply iincluded_le_mono _ _ _ x y H
+  simp only [Nat.succ_eq_add_one, Nat.le_add_right]
+
+lemma iincluded_op_l n (x y : α) : x ≲[n] (x ⬝ y) := by
+  exists y
+  apply refl
+
+lemma included_op_l (x y : α) : x ≲ (x ⬝ y) := by
+  exists y
+  apply refl
+
+lemma iincluded_op_r n (x y : α) : y ≲[n] (x ⬝ y) := by
+  rw [mul_comm]
+  apply iincluded_op_l
+
+lemma included_op_r (x y : α) : y ≲ (x ⬝ y) := by
+  rw [mul_comm]
+  apply included_op_l
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 end CMRA
 
