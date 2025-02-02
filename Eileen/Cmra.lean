@@ -2,6 +2,10 @@
 Authors: Markus de Medeiros
 
 Based on https://gitlab.mpi-sws.org/adamAndMath/iris/tree/fossacs-2025?ref_type=tags
+
+TODO items:
+There's something weird about mul_comm and mul_assoc: seems that sometimes mixing Mul.mul,
+⬝, and HMul.hMul confuses it. I should probably just delete ⬝, Op, and op to be honest.
 -/
 
 import Eileen.Ofe
@@ -492,14 +496,47 @@ lemma included_op_r (x y : α) : y ≲ (x ⬝ y) := by
   apply included_op_l
 
 
+lemma iincluded_op_left_cancelative n (x y z : α) (H : x ≲[n] y) : (z ⬝ x) ≲[n] (z ⬝ y) := by
+  rcases H with ⟨ w, Hw ⟩
+  exists w
+  apply _root_.trans
+  · apply op_nonexpansive
+    apply Hw
+  rw [mul_assoc]
+  apply refl
 
+lemma included_op_left_cancelative (x y z : α) (H : x ≲ y) : (z ⬝ x) ≲ (z ⬝ y) := by
+  rcases H with ⟨ w, Hw ⟩
+  exists w
+  apply _root_.trans
+  · rw [mul_comm]
+    apply op_equiv_equiv_equiv_proper
+    · apply Hw
+    · apply refl
+  rw [mul_assoc]
+  rw [mul_comm z]
+  apply refl
 
+lemma iincluded_op_right_cancelative n (x y z : α) (H : x ≲[n] y) : (x ⬝ z) ≲[n] (y ⬝ z) := by
+  rw [mul_comm x z]
+  rw [mul_comm y z]
+  apply iincluded_op_left_cancelative
+  trivial
 
+lemma included_op_right_cancelative (x y z : α) (H : x ≲ y) : (x ⬝ z) ≲ (y ⬝ z) := by
+  rw [mul_comm x z]
+  rw [mul_comm y z]
+  apply included_op_left_cancelative
+  trivial
 
-
-
-
-
+lemma iincluded_op_mono n (x y z w : α) (H1 : x ≲[n] y) (H2 : z ≲[n] w) : (x ⬝ z) ≲[n] y ⬝ w := by
+  rcases H1 with ⟨ z1, Hz1 ⟩
+  rcases H2 with ⟨ z2, Hz2 ⟩
+  exists (z1 * z2)
+  apply _root_.trans
+  · apply op_nonexpansive
+    apply Hz2
+  sorry
 
 
 
