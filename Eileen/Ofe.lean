@@ -1611,7 +1611,7 @@ instance (T : Type) [OT : OFE T] : oFunctorPre (oFunctor.const T) where
   obj_ofe := OT
 
 instance (T : Type) [OT : OFE T] : oFunctorContractive (oFunctor.const T) where
-  map_pointwise_ne f := { is_nonexpansive := id }
+  map_pointwise_ne _ := HasNonExpansive.mk id
   map_id x := by
     rename_i A B _ _
     apply Setoid.refl
@@ -1635,6 +1635,37 @@ instance (T : Type) [OT : OFE T] : oFunctorContractive (oFunctor.const T) where
     intro i
     simp [DFunLike.coe]
     apply refl
+
+def oFunctor.id : oFunctorStruct where
+  obj _ B := B
+  map f := f.2
+
+instance : oFunctorPre oFunctor.id  where
+  obj_ofe := fun {_ _ _ I} => I.toOFE
+
+instance : oFunctor oFunctor.id where
+  map_pointwise_ne f := by
+    rcases f with ⟨ _, f' ⟩
+    apply HasNonExpansive.mk
+    rcases f' with ⟨ _, H ⟩
+    apply H
+  map_id x := by
+    simp [oFunctor.id]
+    apply Setoid.refl
+  map_cmp f g f' g' x := by
+    simp [oFunctor.id]
+    apply Setoid.refl
+  map_ne := by
+    intros
+    apply HasNonExpansive.mk
+    simp [oFunctor.id]
+    intros
+    intro _
+    rename_i H _
+    apply H.2
+
+
+
 
 
 end oFunctor
