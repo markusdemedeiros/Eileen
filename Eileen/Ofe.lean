@@ -1595,7 +1595,47 @@ instance (F1 F2 : oFunctorStruct) [oFunctor F1] [oFunctorPreLawful F2] [cFunctor
     clear X''
     apply @oFunctorPreLawful.map_id F1 _
   map_cmp := by
+    intro A A' A'' B B' B'' _ _ _ _ _ _ f g f' g' x
+    unfold oFunctorStruct.comp
+    simp
     sorry
+
+-- Other composition lemmas
+
+
+def oFunctor.const (T : Type) [OFE T] : oFunctorStruct where
+  obj _ _ := T
+  map _ := NonExpansive.cid _
+
+instance (T : Type) [OT : OFE T] : oFunctorPre (oFunctor.const T) where
+  obj_ofe := OT
+
+instance (T : Type) [OT : OFE T] : oFunctorContractive (oFunctor.const T) where
+  map_pointwise_ne f := { is_nonexpansive := id }
+  map_id x := by
+    rename_i A B _ _
+    apply Setoid.refl
+  map_cmp f g f' g' x := by
+    apply Setoid.refl
+  map_ct := by
+    intros
+    apply HasContractive.mk
+    intro n x y H
+    simp [oFunctor.const, DFunLike.coe, oFunctorStruct.nemap, NonExpansive.lift]
+    intro i
+    simp [DFunLike.coe]
+    apply refl
+  map_ne := by
+    -- Sus
+    intros
+    apply HasNonExpansive.mk
+    apply nonexpansive_of_contractive
+    intro n x y H
+    simp [oFunctor.const, DFunLike.coe, oFunctorStruct.nemap, NonExpansive.lift]
+    intro i
+    simp [DFunLike.coe]
+    apply refl
+
 
 end oFunctor
 
