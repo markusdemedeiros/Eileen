@@ -449,6 +449,17 @@ class HasNonExpansive [OFE M] [OFE N] [FunLike F M N] (f : F) : Prop where
 instance [OFE M] [OFE N] [NonExpansiveClass F M N] (f : F) : HasNonExpansive f where
   is_nonexpansive := by apply NonExpansiveClass.is_nonexpansive
 
+
+lemma HasNonExpansive_rel_rel_proper [OFE M] [OFE N] [FunLike F M N] (f : F) [HasNonExpansive f] :
+    is_proper1 rel rel f := by
+  intro x y H
+  apply rel_of_forall_irel
+  intro n
+  apply HasNonExpansive.is_nonexpansive
+  apply forall_irel_of_rel
+  apply H
+
+
 namespace NonExpansive
 
 /-- An instance of the struct for a function which has a nonexpansive proof -/
@@ -1429,6 +1440,9 @@ lemma Product.functor_prod'_nonexpansive [OFE A] [OFE B] [OFE C] :
   · apply H2
 
 
+lemma Product.prod_rel [OFE A] [OFE B] (a a' : A) (b b' : B) : (a ≈ a') -> (b ≈ b') -> (a, b) ≈ (a', b') := sorry
+
+
 -- def Product.prod' {A B C : Type*} [OFE A] [OFE B] [OFE C] : (prodO (A -n> B) (A -n> C)) -n> (A -n> (prodO B C)) where
 
 
@@ -1531,9 +1545,9 @@ def oFunctorStruct.comp (F1 F2 : oFunctorStruct) [oFunctorPreLawful F1] [oFuncto
   map fg := F1.nemap (NonExpansive.lift <| F2.map (fg.2, fg.1), NonExpansive.lift <| F2.map (fg.1, fg.2))
 
 instance (F1 F2 : oFunctorStruct) [oFunctorPreLawful F1] [oFunctorPreLawful F2] [cFunctorPre F2] : oFunctorPre (F1.comp F2) where
-  obj_ofe := sorry
-
--- set_option pp.all true
+  obj_ofe := by
+    intro A B _ _
+    apply @oFunctorPre.obj_ofe F1
 
 instance (F1 F2 : oFunctorStruct) [oFunctor F1] [oFunctorPreLawful F2] [cFunctorPre F2] : oFunctorPreLawful (F1.comp F2) where
   map_pointwise_ne := by
@@ -1548,16 +1562,42 @@ instance (F1 F2 : oFunctorStruct) [oFunctor F1] [oFunctorPreLawful F2] [cFunctor
     intro n x y H
     rcases Y with ⟨ y' ⟩
     simp_all [DFunLike.coe, oFunctorStruct.comp, oFunctorStruct.nemap, NonExpansive.lift, oFunctorStruct.map] -- NonExpansive.lift]
-    let y'' := @y' n x y
-    -- whut
-    sorry
   map_id := by
+    intro A B _ _ x
+    unfold oFunctorStruct.comp
+    simp
+    have H1 y : (F2.map (NonExpansive.cid B, NonExpansive.cid A)) y ≈ y := by
+      apply @oFunctorPreLawful.map_id F2 _
+    have H2 y : (F2.map (NonExpansive.cid A, NonExpansive.cid B)) y ≈ y := by
+      apply @oFunctorPreLawful.map_id F2 _
+    have X := @HasNonExpansive_rel_rel_proper _ _ _ _ _ _ (@F1.nemap (F2.obj B A) (F2.obj B A) (F2.obj A B) (F2.obj A B) _ _ _ _ _) oFunctor.map_ne
+    unfold is_proper1 at X
+    have X' := @X (NonExpansive.lift (F2.map (NonExpansive.cid B, NonExpansive.cid A)), NonExpansive.lift (F2.map (NonExpansive.cid A, NonExpansive.cid B)))
+               (NonExpansive.cid _, NonExpansive.cid _) ?G1
+    case G1 =>
+      apply Product.prod_rel
+      · intro i
+        simp [NonExpansive.lift, DFunLike.coe]
+        apply _root_.trans
+        · apply H1
+        simp [NonExpansive.cid]
+        apply refl
+      · intro i
+        simp [NonExpansive.lift, DFunLike.coe]
+        apply _root_.trans
+        · apply H2
+        simp [NonExpansive.cid]
+        apply refl
+    have X'' := X' x
+    clear X X'
+    apply (@oFunctorPre.obj_ofe F1 _ (F2.obj B A) (F2.obj A B) _ _).trans
+    · apply X''
+    clear X''
+    apply @oFunctorPreLawful.map_id F1 _
+  map_cmp := by
     sorry
-  map_cmp := sorry
 
 end oFunctor
-
-
 
 section Leibniz
 

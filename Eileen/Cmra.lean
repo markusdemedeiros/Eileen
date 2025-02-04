@@ -549,7 +549,19 @@ lemma included_op_mono (x y z w : α) (H1 : x ≲ y) (H2 : z ≲ w) : (x * z) �
   apply refl
 
 
+lemma proper_iincluded_iincluded_iincluded_op n :
+    is_proper2 (iincluded n) (iincluded n) (iincluded n) (@HMul.hMul α α _ _) := by
+  intro x1 y1 x2 y2 H1 H2
+  apply iincluded_op_mono
+  · trivial
+  · trivial
 
+lemma proper_included_included_included_op :
+    is_proper2 included included included (@HMul.hMul α α _ _) := by
+  intro x1 y1 x2 y2 H1 H2
+  apply included_op_mono
+  · trivial
+  · trivial
 
 
 
