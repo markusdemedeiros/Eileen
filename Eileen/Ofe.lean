@@ -1,5 +1,5 @@
 /-
-Authors: Markus de Medeiros
+Ported by: Markus de Medeiros
 -/
 import Mathlib.CategoryTheory.Category.Basic
 import Mathlib.Order.Basic
@@ -2217,3 +2217,76 @@ lemma fold_ne : nonexpansive (fold F) := by sorry
 
 end COFESolver
 end COFESolver
+
+
+section OFEOption
+
+
+instance [OFE T] : OFE (Option T) where
+  r x y :=
+    match (x, y) with
+    | (some vx, some vy) => vx ≈ vy
+    | (none, none) => True
+    | _ => False
+  ir n x y :=
+    match (x, y) with
+    | (some vx, some vy) => vx ≈[n] vy
+    | (none, none) => True
+    | _ => False
+  iseqv := by
+    apply Equivalence.mk
+    · intro x
+      cases x <;> simp
+      apply refl
+    · intros x y _
+      cases x <;> cases y <;> simp_all
+      apply symm
+      trivial
+    · intros x y z _ _
+      cases x <;> cases y <;> cases z <;> simp_all
+      apply _root_.trans
+      · trivial
+      · trivial
+  isieqv := by
+    apply IEquivalence.mk
+    · intro x n
+      cases x <;> simp
+      apply refl
+    · intros x y _ n
+      cases x <;> cases y <;> simp_all
+      apply symm
+      trivial
+    · intros x y z _ _ n
+      cases x <;> cases y <;> cases z <;> simp_all
+      apply _root_.trans
+      · trivial
+      · trivial
+  mono_index := by
+    simp [irel]
+    intro m n x y H
+    cases x <;> cases y <;> simp_all
+    intro Z
+    apply OFE.mono_index H
+    apply Z
+  refines := by
+    simp [rel, irel]
+    intros x y
+    cases x <;> cases y <;> simp_all
+    apply OFE.refines
+
+instance [DiscreteOFE T] : DiscreteOFE (Option T) where
+  discrete := by
+    intro x
+    cases x <;> intro y H <;> cases y <;> simp_all [irel, IRel.ir]
+    · apply refl
+    · simp [rel, OFE.toSetoid]
+      apply DiscreteOFE.discrete
+      apply H
+
+instance [COFE T] : COFE (Option T) where
+  lim := sorry
+  completeness := sorry
+
+lemma nonexpansive_some [OFE T] : nonexpansive (Some : T -> Option T) := sorry
+
+end OFEOption
