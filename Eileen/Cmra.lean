@@ -79,14 +79,19 @@ def cancellable [Mul α] [IRel α] [IValid α] : Pred α :=
 def id_free [Mul α] [IRel α] [IValid α] : Pred α :=
   fun x => ∀ y, ¬ (✓[0] x ∧ (x * y) ≈[0] x)
 
+-- something is an idempotent, indexed lower bound on x
 abbrev is_iidempotent_lb [Mul α] [IRel α] (x : α) : IPred α :=
   fun n y => y ≲[n] x ∧ iidempotent n y
+
+-- something is an idempotent, lower bound on x
+abbrev is_idempotent_lb [Mul α] [Rel α] (x : α) : Pred α :=
+  fun y => (y ≲ x) ∧ idempotent y
 
 abbrev is_maximal_iidempotent_lb [IRel α] [CommSemigroup α] (x : α) (n : ℕ) (cx : α)  : Prop :=
   is_iidempotent_lb x n cx ∧ ∀ m y, m ≤ n -> is_iidempotent_lb x m y -> y ≲[m] cx
 
 abbrev no_maximal_iidempotent [IRel α] [CommSemigroup α] (x : α) : Prop :=
-  ∀ y, ¬ is_iidempotent_lb y 0 x
+  ∀ y, ¬ is_iidempotent_lb x 0 y
 
 -- Note: Defined as a Type so that the choice of cx is relevant
 inductive MI.{u} {α : Type u} [OFE α] [IValid α] [CommSemigroup α] : α -> ℕ -> Type (u + 1)
@@ -111,7 +116,7 @@ export CMRA (op_nonexpansive valid_irel_imp_proper valid_iff_forall_ivalid
              ivalid_op_left valid_of_validS ivalid_irel_prod maximal_idempotent_axiom)
 
 class TotalCMRA (α : Type*) extends CMRA α where
-  cmra_total (x : α) : ∃ cx, ∀ n, is_iidempotent_lb x n cx
+  cmra_total (x : α) : ∃ cx, is_idempotent_lb x cx
 
 export TotalCMRA (cmra_total)
 
@@ -564,8 +569,175 @@ lemma proper_included_included_included_op :
   · trivial
 
 
+-- what
+lemma included_irel_factor (x1 x1' x2 : α) (Hle : x1 ≲ x2) (Hrel : x1' ≈[n] x1) :
+    ∃ x2' : α, x1' ≲ x2' ∧ x2' ≈[n] x2 := by
+  rcases Hle with ⟨ x, Hx ⟩
+  exists (x1' * x)
+  apply And.intro
+  · apply included_op_l
+  · apply _root_.symm
+    apply _root_.trans
+    · apply forall_irel_of_rel
+      apply Hx
+    · rw [mul_comm _ x]
+      rw [mul_comm _ x]
+      apply op_nonexpansive
+      apply symm
+      trivial
 
 end CMRA
+
+section Idempotent
+
+variable (α : Type*) [CMRA α]
+
+lemma extract (x y : α) (Hi : idempotent x) (H : x ≲ y) : y ≈ (x * y) := by
+  rcases H with ⟨ z, Hz ⟩
+  apply _root_.trans
+  · apply Hz
+  apply symm
+  apply _root_.trans
+  · apply OFE.nonexpansive_equiv_equiv_proper
+    · apply op_nonexpansive
+    · apply Hz
+  apply symm
+  rw [<- mul_assoc]
+  rw [mul_comm _ z]
+  rw [mul_comm _ z]
+  apply OFE.nonexpansive_equiv_equiv_proper
+  · apply op_nonexpansive
+  apply symm
+  apply Hi
+
+
+lemma op_idempotent (x y : α) (Hx : idempotent x) (Hy : idempotent y) : idempotent (x * y) := by
+  unfold idempotent
+  rw [<- mul_assoc]
+  rw [mul_comm]
+  rw [<- mul_assoc]
+  conv=>
+    lhs
+    rw [mul_comm x y]
+  rw [mul_assoc, mul_assoc, <- mul_assoc y y, mul_comm]
+  apply _root_.trans
+  · apply OFE.nonexpansive_equiv_equiv_proper
+    · apply op_nonexpansive
+    apply Hy
+  apply _root_.trans
+  · rw [mul_comm]
+    apply OFE.nonexpansive_equiv_equiv_proper
+    · apply op_nonexpansive
+    apply Hx
+  rw [mul_comm]
+  apply refl
+
+end Idempotent
+
+
+section CMRATotal
+
+variable (α : Type*) [TotalCMRA α]
+
+-- does it have transitivity somehow??? what??
+instance : IsPreorder α (included ) where
+  refl := by
+    intro x
+    rcases (cmra_total x) with ⟨ e, ⟨ ⟨ x', Hx' ⟩, Hii ⟩ ⟩
+    exists e
+    apply rel_of_forall_irel
+    intro n
+    apply symm
+    apply _root_.trans
+    · rw [mul_comm]
+      apply op_nonexpansive
+      apply forall_irel_of_rel
+      apply Hx'
+    apply symm
+    apply _root_.trans
+    · apply forall_irel_of_rel
+      apply Hx'
+    rw [<- mul_assoc]
+    rw [mul_comm _ x']
+    rw [mul_comm _ x']
+    apply op_nonexpansive
+    apply symm
+    apply forall_irel_of_rel
+    apply Hii
+
+instance (n : ℕ) : IsPreorder α (iincluded n) where
+  refl := by
+    intro x
+    rcases (cmra_total x) with ⟨ e, ⟨ ⟨ x', Hx' ⟩, Hii ⟩ ⟩
+    exists e
+    apply symm
+    apply _root_.trans
+    · rw [mul_comm]
+      apply op_nonexpansive
+      apply forall_irel_of_rel
+      apply Hx'
+    apply symm
+    apply _root_.trans
+    · apply forall_irel_of_rel
+      apply Hx'
+    rw [<- mul_assoc]
+    rw [mul_comm _ x']
+    rw [mul_comm _ x']
+    apply op_nonexpansive
+    apply symm
+    apply forall_irel_of_rel
+    apply Hii
+
+def total_valid_has_MII (n : ℕ) (x : α) (HV : ✓[n] x) :
+  ∃ (cx : α), is_maximal_iidempotent_lb x n cx :=
+  match (maximal_idempotent_axiom _ _ HV) with
+  | MI.HasMI _ _ cx H => by exists cx
+  | MI.NoMI _ H => by
+    exfalso
+    rcases (@cmra_total α _ x) with ⟨ e, ⟨ _, _ ⟩ ⟩
+    apply H e
+    apply And.intro
+    · apply CMRA.forall_iincluded_of_included
+      trivial
+    · unfold iidempotent
+      apply forall_irel_of_rel
+      trivial
+
+end CMRATotal
+
+
+section CMRADiscrete
+
+variable (α : Type*) [TotalCMRA α]
+
+lemma cmra_discrete_included_l (x y : α) (H : discrete x) (HV : ✓[0] y) (Hle : x ≲[0] y) : x ≲ y := by
+  rcases Hle with ⟨ w, Hw ⟩
+  rcases (ivalid_irel_prod _ _ _ _ HV Hw) with ⟨a, ⟨b, ⟨Hab, ⟨Hax, Hbw⟩⟩⟩⟩
+  exists b
+  apply _root_.trans
+  · apply Hab
+  rw [mul_comm _ b]
+  rw [mul_comm _ b]
+  apply OFE.nonexpansive_equiv_equiv_proper
+  · apply op_nonexpansive
+  apply symm
+  apply H
+  apply symm
+  apply Hax
+
+lemma cmra_discrete_included_r (x y : α) (H : discrete y) (Hle : x ≲[0] y) : x ≲ y := by
+  rcases Hle with ⟨ x', Hx' ⟩
+  exists x'
+  apply H
+  trivial
+
+lemma cmra_discrete_op (x y : α) (HV : ✓[0] (x * y)) (Hx : discrete x) (Hy : discrete y) : discrete (x * y) := by
+  intro z Hz
+  -- rcases (ivalid_irel_prod _ _ _ _ HV Hz) with ⟨a, ⟨b, ⟨Hab, ⟨Hax, Hbw⟩⟩⟩⟩
+  sorry
+
+
+end CMRADiscrete
 
 end CMRAUnbundled
 

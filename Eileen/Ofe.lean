@@ -654,6 +654,8 @@ section OFEDiscrete
 
 /-! ### Definition for a type with a discrete OFE -/
 
+abbrev discrete {T : Sort*} [OFE T] (x : T) := is_discrete x irel rel
+
 /-- [semi-bundled] A discrete OFE is an OFE where all elements are discrete -/
 class DiscreteOFE (T : Sort*) extends OFE T where
   discrete : ∀ (x : T), is_discrete x irel rel
