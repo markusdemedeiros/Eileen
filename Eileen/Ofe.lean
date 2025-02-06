@@ -2014,7 +2014,7 @@ lemma gf (k : ℕ) (x : A F k) : g F k (f F k x) ≈ x := by
     suffices (g F k ⊙ f F k, g F k ⊙ f F k) ≈ (NonExpansive.cid (A' F k).fst, NonExpansive.cid (A' F k).fst) by
       rw [oFunctor.nemap_map_eq]
       apply _root_.trans
-      · apply (@HasNonExpansive_rel_rel_proper _ _ _ _ _ _ _ ((@oFunctorContractive.tooFunctor F _).map_ne ))
+      · apply (@HasNonExpansive_rel_rel_proper _ _ _ _ _ _ _ ((@oFunctorContractive.tooFunctor F _).map_ne))
         apply this
       apply (@oFunctorContractive.tooFunctor F _).map_id
     apply Product.prod_rel
@@ -2022,7 +2022,29 @@ lemma gf (k : ℕ) (x : A F k) : g F k (f F k x) ≈ x := by
     · apply IH
 
 lemma fg (k : ℕ) (x : A F (k + 1 + 1)) : f F (k + 1) (g F (k + 1) x) ≈[k] x := by
-  sorry
+  induction k
+  · simp only [Nat.reduceAdd, Nat.succ_eq_add_one]
+    rw [f_S, g_S]
+    apply _root_.trans
+    · apply _root_.symm
+      apply forall_irel_of_rel
+      apply (@(@oFunctorContractive.tooFunctor F _).map_cmp _ _ _ _ _ _
+              (ACOFE _) (ACOFE _) (ACOFE _) (ACOFE _) (ACOFE _) (ACOFE _)
+              (f F 0) (g F 0) (g F 0) (f F 0))
+    apply _root_.symm
+    apply _root_.trans
+    · apply _root_.symm
+      apply forall_irel_of_rel
+      apply (@(@oFunctorContractive.tooFunctor F _).map_id _ _ (ACOFE _) (ACOFE _) _)
+    apply _root_.symm
+    rw [oFunctor.nemap_map_eq]
+    rw [oFunctor.nemap_map_eq]
+    --  #check ((F.nemap (f F 0 ⊙ g F 0, f F 0 ⊙ g F 0)) x)
+    -- suffices (F.map (f F 0 ⊙ g F 0, f F 0 ⊙ g F 0) ≈
+    --           F.map (NonExpansive.cid (A F (0 + 1)), NonExpansive.cid (A F (Nat.succ 0)))) by sorry
+    -- #check contractive_rel_0
+    sorry
+  · sorry
 
 structure Tower where
   car (k : ℕ) : A F k
@@ -2033,14 +2055,49 @@ export Tower (g_tower)
 instance : OFE (Tower F) where
   r TX TY := ∀ k, TX.car k ≈ TY.car k
   ir n TX TY := ∀ k, TX.car k ≈[n] TY.car k
-  iseqv := sorry
-  isieqv := sorry
-  mono_index := sorry
-  refines := sorry
+  iseqv := by
+    apply Equivalence.mk
+    · intros
+      apply _root_.refl
+    · intros _ _ H _
+      apply _root_.symm
+      apply H
+    · intros _ _ _ H1 H2 _
+      apply _root_.trans
+      · apply H1
+      · apply H2
+  isieqv := by
+    apply IEquivalence.mk
+    · intros
+      apply _root_.refl
+    · intros _ _ _ H _
+      apply _root_.symm
+      apply H
+    · intros _ _ _ _ H1 H2 _
+      apply _root_.trans
+      · apply H1
+      · apply H2
+  mono_index := by
+    intro _ _ _ _ Hle H _
+    apply OFE.mono_index Hle
+    apply H
+  refines := by
+    intro x y
+    apply Iff.intro <;> intro H
+    · intro _
+      apply rel_of_forall_irel
+      intro _
+      apply H
+    · intro _ _
+      apply forall_irel_of_rel
+      apply H
 
 def tower_chain (c : Chain (Tower F)) (k : ℕ) : Chain (A F k) where
   car i := (c i).car k
-  is_cauchy := sorry
+  is_cauchy := by
+    intros _ _ _
+    apply c.is_cauchy
+    trivial
 
 /-
 instance : COFE (Tower F) where
@@ -2052,8 +2109,29 @@ instance : COFE (Tower F) where
 -/
 
 def TowerCOFEMixin : COFEMixin (Tower F) where
-  lim c := Tower.mk (fun i => COFE.lim <| tower_chain F c i) sorry
-  completeness := sorry
+  lim c := Tower.mk (fun i => COFE.lim <| tower_chain F c i)
+      (by
+        intros k
+        apply rel_of_forall_irel
+        intro n
+        simp
+        apply _root_.symm
+        apply _root_.trans
+        · apply COFE.completeness
+        apply _root_.symm
+        apply _root_.trans
+        · apply NonExpansive.is_nonexpansive
+          apply COFE.completeness
+        simp [tower_chain]
+        apply forall_irel_of_rel
+        apply g_tower)
+  completeness := by
+    intros n c k
+    simp
+    apply _root_.trans
+    · apply COFE.completeness
+    apply Chain.is_cauchy
+    simp
 
 instance : COFE (Tower F) := COFEMixin.toCOFE _ (TowerCOFEMixin F)
 
