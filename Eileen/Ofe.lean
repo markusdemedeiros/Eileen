@@ -1520,6 +1520,12 @@ def oFunctorStruct.nemap (F : oFunctorStruct) {A A' B B' : Type}
       (F.obj A B) -n> (F.obj A' B') :=
   NonExpansive.lift (F.map f)
 
+lemma oFunctor.nemap_map_eq (F : oFunctorStruct) {A A' B B' : Type}
+      [oFunctorPreLawful F] [COFE A] [COFE A'] [COFE B] [COFE B']
+    (f : prodO (A' -n> A) (B -n> B')) x : F.map f x = F.nemap f x := by
+  simp [oFunctorStruct.nemap, NonExpansive.lift, DFunLike.coe]
+
+
 class oFunctor (F : oFunctorStruct) extends oFunctorPreLawful F where
   map_ne [COFE A] [COFE A'] [COFE B] [COFE B'] :
     HasNonExpansive (@F.nemap A A' B B' _ _ _ _ _)
@@ -1663,6 +1669,9 @@ instance : oFunctor oFunctor.id where
     intro _
     rename_i H _
     apply H.2
+
+
+-- ProdOF
 
 
 
@@ -1994,7 +2003,23 @@ def f_S (k : ℕ) (x : A F (k + 1)) : f F (k + 1) x = F.map (g F k, f F k) x := 
 def g_S (k : ℕ) (x : A F (k + 1 + 1)) : g F (k + 1) x = F.map (f F k, g F k) x := by rfl
 
 lemma gf (k : ℕ) (x : A F k) : g F k (f F k x) ≈ x := by
-  sorry
+  induction k
+  · simp [g, NonExpansive.cconst, DFunLike.coe]
+    apply Setoid.refl
+  · rename_i k IH
+    simp [f, g, NonExpansive.lift, DFunLike.coe]
+    apply _root_.trans
+    · apply _root_.symm
+      apply (@oFunctorContractive.tooFunctor F _).map_cmp
+    suffices (g F k ⊙ f F k, g F k ⊙ f F k) ≈ (NonExpansive.cid (A' F k).fst, NonExpansive.cid (A' F k).fst) by
+      rw [oFunctor.nemap_map_eq]
+      apply _root_.trans
+      · apply (@HasNonExpansive_rel_rel_proper _ _ _ _ _ _ _ ((@oFunctorContractive.tooFunctor F _).map_ne ))
+        apply this
+      apply (@oFunctorContractive.tooFunctor F _).map_id
+    apply Product.prod_rel
+    · apply IH
+    · apply IH
 
 lemma fg (k : ℕ) (x : A F (k + 1 + 1)) : f F (k + 1) (g F (k + 1) x) ≈[k] x := by
   sorry
