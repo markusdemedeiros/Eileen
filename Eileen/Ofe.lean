@@ -1227,13 +1227,13 @@ lemma Contractive.fixpoint_ind [COFE α] [Inhabited α] (f : α -c> α)
     apply IH
   apply Hlim
   intros n
-  simp [Nat.repeat]
+  -- simp [Nat.repeat]
   induction n
-  · simp [Nat.repeat]
+  · -- simp [Nat.repeat]
     apply Hind
     apply Hx
   · rename_i n IH
-    simp [Nat.repeat]
+    -- simp [Nat.repeat]
     apply Hind
     apply IH
 

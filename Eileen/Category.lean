@@ -102,6 +102,7 @@ lemma ofHom_comp {R S T : Type} [OFE R] [OFE S] [OFE T]
 lemma ofHom_apply {R S : Type} [OFE R] [OFE S]
     (f : R -n> S) (r : R) : ofHom f r = f r := rfl
 
+/-
 instance : CategoryTheory.ConcreteCategory OFECat where
   -- Functor from OFECat to Type
   forget :=
@@ -115,12 +116,14 @@ instance : CategoryTheory.ConcreteCategory OFECat where
       rcases g
       ext
       simp_all [DFunLike.coe] ⟩
+-/
 
 instance : CategoryTheory.LargeCategory OFECat where
 
+/-
 lemma forget_obj {R : OFECat} : CategoryTheory.ConcreteCategory.forget.obj R = R := by
   rfl
-
+-/
 -- lemma forget_map {R S : OFECat} (f : R ⟶ S) :
 --     CategoryTheory.ConcreteCategory.forget.map f = f := by
 --   rfl
@@ -223,6 +226,7 @@ lemma ofHom_comp {R S T : Type} [COFE R] [COFE S] [COFE T]
 lemma ofHom_apply {R S : Type} [COFE R] [COFE S]
     (f : R -n> S) (r : R) : ofHom f r = f r := rfl
 
+/-
 instance : CategoryTheory.ConcreteCategory COFECat where
   -- Functor from OFECat to Type
   forget :=
@@ -241,10 +245,10 @@ instance : CategoryTheory.LargeCategory COFECat where
 
 lemma forget_obj {R : COFECat} : CategoryTheory.ConcreteCategory.forget.obj R = R := by
   rfl
-
 instance {R : OFECat} : OFE (CategoryTheory.ConcreteCategory.forget.obj R) :=
   (inferInstance : OFE R.α)
 
+-/
 -- lemma forget_map {R S : OFECat} (f : R ⟶ S) :
 --     CategoryTheory.ConcreteCategory.forget.map f = f := by
 --   rfl
