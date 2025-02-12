@@ -23,3 +23,8 @@ The main mechanized results so far:
 - Fixpoint of contractive maps
 
 Future steps are described in _Eileen: A plan for Iris in Lean_. 
+
+## Contributing:
+
+Do not run ``lake update`` without a PR. 
+This project tracks the ``lake-manifest`` file in order to pin the mathlib version.
