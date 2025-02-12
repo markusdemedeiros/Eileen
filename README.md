@@ -28,3 +28,6 @@ Future steps are described in _Eileen: A plan for Iris in Lean_.
 
 Do not run ``lake update`` without a PR. 
 This project tracks the ``lake-manifest`` file in order to pin the mathlib version.
+
+PR's regarding code improvements, CI, and compliance with the Mathlib style guide are welcome without restraint. 
+If you would like to contribute to the main porting effort, please get in touch with me at ``@markusdemedeiros`` on the Lean Zulip, or by email, in order to avoid redundant work. 
