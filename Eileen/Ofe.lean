@@ -1294,9 +1294,17 @@ abbrev prodO (A B : Type) : Type := A × B
 -- instance [OFE A] [OFE B] : Coe (A × B) (prodO A B) where
 --   coe := sorry
 
+@[simp, reducible]
+def Product.ir [OFE A] [OFE B] : IRelation (prodO A B) :=
+  fun n x y => (x.1 ≈[n] y.1) ∧ (x.2 ≈[n] y.2)
+
+@[simp, reducible]
+def Product.r [OFE A] [OFE B] : Relation (prodO A B) :=
+  fun x y => (x.1 ≈ y.1) ∧ (x.2 ≈ y.2)
+
 instance [OFE A] [OFE B] : OFE (prodO A B) where
-  ir n x y := (x.1 ≈[n] y.1) ∧ (x.2 ≈[n] y.2)
-  r x y := (x.1 ≈ y.1) ∧ (x.2 ≈ y.2)
+  ir := Product.ir
+  r := Product.r
   iseqv := by
     apply Equivalence.mk
     · intro
@@ -1441,9 +1449,15 @@ lemma Product.functor_prod'_nonexpansive [OFE A] [OFE B] [OFE C] :
   · apply H1
   · apply H2
 
+lemma Product.prod_rel [OFE A] [OFE B] (a a' : A) (b b' : B) :
+    (a ≈ a') -> (b ≈ b') -> (a, b) ≈ (a', b') := by
+  intros Ha Hb
+  apply And.intro <;> simp only [Ha, Hb]
 
-lemma Product.prod_rel [OFE A] [OFE B] (a a' : A) (b b' : B) : (a ≈ a') -> (b ≈ b') -> (a, b) ≈ (a', b') := sorry
-
+lemma Product.prod_irel [OFE A] [OFE B] (a a' : A) (b b' : B) n :
+    (a ≈[n] a') -> (b ≈[n] b') -> (a, b) ≈[n] (a', b') := by
+  intros Ha Hb
+  apply And.intro <;> simp only [Ha, Hb]
 
 -- def Product.prod' {A B C : Type*} [OFE A] [OFE B] [OFE C] : (prodO (A -n> B) (A -n> C)) -n> (A -n> (prodO B C)) where
 
