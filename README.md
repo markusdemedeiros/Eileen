@@ -1,6 +1,6 @@
 # Eileen
 
-> [!IMPORTANT]  
+> [!CAUTION]  
 > Work on [lean-iris](https://github.com/leanprover-community/iris-lean) has restarted! To consolidate the effort, this project is no longer active. Interested contributors should work on lean-iris instead. 
 
 
