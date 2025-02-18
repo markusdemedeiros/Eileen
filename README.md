@@ -1,5 +1,9 @@
 # Eileen
 
+> [!IMPORTANT]  
+> Work on [lean-iris](https://github.com/leanprover-community/iris-lean) has restarted! To consolidate the effort, this project is no longer active. Interested contributors should work on lean-iris instead. 
+
+
 This project is an implementation for some of the data structures of [Iris](https://iris-project.org) in Lean.
 While the ultimate goal of the project is to support [lean-iris](https://github.com/leanprover-community/iris-lean) with a fully-fledged Iris implementation, the current target is to mechanize enough of the foundations to instantiate the frontend with ``upred``. 
 
